@@ -85,6 +85,13 @@ class Project(TimestampMixin, Base):
     compliance_mappings: Mapped[list[ComplianceMapping]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
+    security_findings: Mapped[list[SecurityFinding]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
+    risks: Mapped[list[Risk]] = relationship(back_populates="project", cascade="all, delete-orphan")
+    sdlc_recommendations: Mapped[list[SDLCRecommendation]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
 
 
 class Stakeholder(TimestampMixin, Base):
@@ -183,6 +190,9 @@ class Approval(TimestampMixin, Base):
     decision_comment: Mapped[str | None] = mapped_column(Text)
     decided_by_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
     decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    workflow_thread_id: Mapped[str | None] = mapped_column(String(120), index=True)
+    request_payload: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, nullable=False)
+    decision_payload: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, nullable=False)
 
     project: Mapped[Project] = relationship(back_populates="approvals")
 
@@ -286,3 +296,57 @@ class ComplianceMapping(TimestampMixin, Base):
     status: Mapped[str] = mapped_column(String(32), default="draft", nullable=False)
 
     project: Mapped[Project] = relationship(back_populates="compliance_mappings")
+
+
+class SecurityFinding(TimestampMixin, Base):
+    __tablename__ = "security_findings"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), index=True
+    )
+    requirement_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("requirements.id", ondelete="CASCADE"), index=True
+    )
+    category: Mapped[str] = mapped_column(String(64), nullable=False)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    severity: Mapped[str] = mapped_column(String(32), nullable=False)
+    recommendation: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), default="open", nullable=False)
+    project: Mapped[Project] = relationship(back_populates="security_findings")
+
+
+class Risk(TimestampMixin, Base):
+    __tablename__ = "risks"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), index=True
+    )
+    requirement_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("requirements.id", ondelete="SET NULL"), index=True
+    )
+    risk_code: Mapped[str] = mapped_column(String(32), nullable=False)
+    category: Mapped[str] = mapped_column(String(64), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    likelihood: Mapped[int] = mapped_column(nullable=False)
+    impact: Mapped[int] = mapped_column(nullable=False)
+    score: Mapped[int] = mapped_column(nullable=False)
+    mitigation: Mapped[str] = mapped_column(Text, nullable=False)
+    owner_role: Mapped[str] = mapped_column(String(120), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), default="open", nullable=False)
+    project: Mapped[Project] = relationship(back_populates="risks")
+
+
+class SDLCRecommendation(TimestampMixin, Base):
+    __tablename__ = "sdlc_recommendations"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), index=True
+    )
+    characteristics: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    scores: Mapped[dict[str, float]] = mapped_column(JSONB, nullable=False)
+    recommendation: Mapped[str] = mapped_column(String(64), nullable=False)
+    rationale: Mapped[str] = mapped_column(Text, nullable=False)
+    scoring_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    approval_status: Mapped[str] = mapped_column(String(32), default="draft", nullable=False)
+    project: Mapped[Project] = relationship(back_populates="sdlc_recommendations")

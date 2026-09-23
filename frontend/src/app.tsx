@@ -15,6 +15,8 @@ import { NotFoundPage } from "@/pages/not-found-page";
 import { ProjectOverviewPage } from "@/pages/project-overview-page";
 import { ProjectStagePage } from "@/pages/project-stage-page";
 import { RequirementsPage } from "@/pages/requirements-page";
+import { SecurityRiskPage } from "@/pages/security-risk-page";
+import { SDLCPage } from "@/pages/sdlc-page";
 
 export function App() {
   return (
@@ -34,9 +36,9 @@ export function App() {
               <Route element={<InterviewPage />} path="interview" />
               <Route element={<RequirementsPage />} path="requirements" />
               <Route element={<KnowledgePage />} path="compliance" />
-              <Route element={<ProjectStagePage description="Review structured security and privacy findings linked to project requirements." eyebrow="Security review" title="Security" />} path="security" />
-              <Route element={<ProjectStagePage description="Track business, technical, security, and compliance risks with clear mitigations." eyebrow="Risk management" title="Risk register" />} path="risks" />
-              <Route element={<ProjectStagePage description="Compare deterministic score breakdowns before approving a delivery approach." eyebrow="Delivery planning" title="SDLC recommendation" />} path="sdlc" />
+              <Route element={<SecurityRiskPage view="security" />} path="security" />
+              <Route element={<SecurityRiskPage view="risks" />} path="risks" />
+              <Route element={<SDLCPage />} path="sdlc" />
               <Route element={<ApprovalsPage />} path="approvals" />
               <Route element={<ProjectStagePage description="View generated software engineering artefacts built from approved project data." eyebrow="Project artefacts" title="Documents" />} path="documents" />
               <Route element={<ProjectStagePage description="Inspect significant human and system actions across the project lifecycle." eyebrow="Traceability" title="Audit trail" />} path="audit" />

@@ -1,27 +1,15 @@
-import { CheckSquare, LockKey } from "@phosphor-icons/react";
-
+import { CheckSquare, SpinnerGap, WarningCircle } from "@phosphor-icons/react";
+import { useEffect, useState } from "react";
+import { useOutletContext } from "react-router-dom";
+import { apiRequest } from "@/api/client";
+import type { Approval } from "@/api/types";
+import type { ProjectOutletContext } from "@/components/project-layout";
 import { Button } from "@/components/ui/button";
 
 export function ApprovalsPage() {
-  return (
-    <div>
-      <p className="text-sm font-semibold text-[#d9ff76]">Human review</p>
-      <h1 className="mt-3 text-4xl font-semibold">Approvals</h1>
-      <p className="mt-4 max-w-2xl text-pretty text-base text-[#9b9b9b]">
-        High impact requirements, compliance interpretations, and delivery recommendations will wait here for accountable review.
-      </p>
-      <section className="mt-10 rounded-2xl border border-white/10 bg-[#181818] p-8 text-center sm:p-12">
-        <span className="mx-auto grid size-12 place-items-center rounded-xl bg-[#272727] text-[#d9ff76]">
-          <CheckSquare aria-hidden="true" size={24} />
-        </span>
-        <h2 className="mt-6 text-2xl font-semibold">No decisions are waiting</h2>
-        <p className="mx-auto mt-3 max-w-lg text-pretty text-base text-[#9b9b9b]">
-          Approval requests will be created only when a workflow reaches a real human review point.
-        </p>
-        <Button className="mt-8" disabled variant="secondary">
-          <LockKey aria-hidden="true" /> Review selection
-        </Button>
-      </section>
-    </div>
-  );
+  const { project } = useOutletContext<ProjectOutletContext>(); const [items, setItems] = useState<Approval[]>([]); const [busy, setBusy] = useState(false); const [error, setError] = useState("");
+  useEffect(() => { apiRequest<{ items: Approval[] }>(`/projects/${project.id}/approvals`, { authenticated: true }).then((data) => setItems(data.items)).catch((reason: Error) => setError(reason.message)); }, [project.id]);
+  async function prepare() { setBusy(true); try { const data = await apiRequest<{ items: Approval[] }>(`/projects/${project.id}/approvals/prepare`, { method: "POST", authenticated: true }); setItems(data.items); } catch (reason) { setError(reason instanceof Error ? reason.message : "Could not prepare approvals."); } finally { setBusy(false); } }
+  async function decide(id: string, action: "approve" | "reject" | "edit" | "regenerate") { const comment = window.prompt(`Comment for ${action}`); if (!comment) return; setBusy(true); try { const updated = await apiRequest<Approval>(`/projects/${project.id}/approvals/${id}/decision`, { method: "POST", authenticated: true, body: JSON.stringify({ action, comment, edits: {} }) }); setItems((current) => current.map((item) => item.id === id ? updated : item)); } catch (reason) { setError(reason instanceof Error ? reason.message : "Decision failed."); } finally { setBusy(false); } }
+  return <div><p className="text-sm font-semibold text-[#d9ff76]">Human review</p><h1 className="mt-3 text-4xl font-semibold">Approvals</h1><p className="mt-4 max-w-2xl text-[#9b9b9b]">Review durable decision requests. Every action records the reviewer, comment, timestamp, and workflow thread.</p>{error && <p role="alert" className="mt-5 flex gap-2 text-red-200"><WarningCircle />{error}</p>}{items.length === 0 ? <section className="mt-10 rounded-2xl border border-white/10 bg-[#181818] p-10 text-center"><CheckSquare className="mx-auto text-[#d9ff76]" size={42} /><h2 className="mt-5 text-2xl font-semibold">No decisions are waiting</h2><p className="mt-3 text-[#888]">Prepare a baseline approval after requirements are reviewed.</p><Button onClick={prepare} disabled={busy} className="mt-6">{busy && <SpinnerGap className="animate-spin" />}Prepare approval</Button></section> : <div className="mt-8 space-y-4">{items.map((item) => <article key={item.id} className="rounded-2xl border border-white/10 bg-[#181818] p-6"><div className="flex flex-wrap justify-between gap-3"><div><h2 className="text-lg font-semibold">{item.title}</h2><p className="mt-2 text-sm text-[#888]">Assigned to {item.assigned_role}</p></div><span className="rounded-full bg-white/5 px-3 py-1 text-xs uppercase text-[#d9ff76]">{item.status}</span></div>{item.status === "pending" ? <div className="mt-5 flex flex-wrap gap-2"><Button onClick={() => decide(item.id, "approve")} disabled={busy}>Approve</Button><Button onClick={() => decide(item.id, "reject")} disabled={busy} variant="secondary">Reject</Button><Button onClick={() => decide(item.id, "edit")} disabled={busy} variant="secondary">Edit</Button><Button onClick={() => decide(item.id, "regenerate")} disabled={busy} variant="secondary">Regenerate</Button></div> : <p className="mt-4 text-sm text-[#aaa]">{item.decision_comment}</p>}</article>)}</div>}</div>;
 }
