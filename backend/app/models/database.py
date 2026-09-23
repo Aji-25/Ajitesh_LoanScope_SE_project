@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -76,6 +77,12 @@ class Project(TimestampMixin, Base):
         back_populates="project", cascade="all, delete-orphan"
     )
     workflow_runs: Mapped[list[WorkflowRun]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
+    documents: Mapped[list[KnowledgeDocument]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
+    compliance_mappings: Mapped[list[ComplianceMapping]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
 
@@ -217,3 +224,65 @@ class WorkflowRun(TimestampMixin, Base):
     error_message: Mapped[str | None] = mapped_column(Text)
 
     project: Mapped[Project] = relationship(back_populates="workflow_runs")
+
+
+class KnowledgeDocument(TimestampMixin, Base):
+    __tablename__ = "knowledge_documents"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), index=True
+    )
+    filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_type: Mapped[str] = mapped_column(String(120), nullable=False)
+    version: Mapped[str] = mapped_column(String(40), default="1.0", nullable=False)
+    jurisdiction: Mapped[str] = mapped_column(String(120), nullable=False)
+    effective_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(String(32), default="indexed", nullable=False)
+    page_count: Mapped[int] = mapped_column(default=1, nullable=False)
+
+    project: Mapped[Project] = relationship(back_populates="documents")
+    chunks: Mapped[list[DocumentChunk]] = relationship(
+        back_populates="document", cascade="all, delete-orphan"
+    )
+
+
+class DocumentChunk(Base):
+    __tablename__ = "document_chunks"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    document_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("knowledge_documents.id", ondelete="CASCADE"), index=True
+    )
+    chunk_index: Mapped[int] = mapped_column(nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    page_number: Mapped[int | None] = mapped_column()
+    section: Mapped[str | None] = mapped_column(String(255))
+    token_count: Mapped[int] = mapped_column(nullable=False)
+    embedding: Mapped[list[float]] = mapped_column(Vector(384), nullable=False)
+    chunk_metadata: Mapped[dict[str, Any]] = mapped_column(
+        "metadata", JSONB, default=dict, nullable=False
+    )
+
+    document: Mapped[KnowledgeDocument] = relationship(back_populates="chunks")
+
+
+class ComplianceMapping(TimestampMixin, Base):
+    __tablename__ = "compliance_mappings"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), index=True
+    )
+    requirement_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("requirements.id", ondelete="CASCADE"), index=True
+    )
+    obligation: Mapped[str] = mapped_column(Text, nullable=False)
+    applicability: Mapped[str] = mapped_column(String(32), nullable=False)
+    rationale: Mapped[str] = mapped_column(Text, nullable=False)
+    evidence_chunk_ids: Mapped[list[str]] = mapped_column(JSONB, default=list, nullable=False)
+    citations: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list, nullable=False)
+    confidence: Mapped[float] = mapped_column(Float, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), default="draft", nullable=False)
+
+    project: Mapped[Project] = relationship(back_populates="compliance_mappings")

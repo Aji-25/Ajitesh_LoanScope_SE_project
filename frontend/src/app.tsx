@@ -8,6 +8,7 @@ import { CreateProjectPage } from "@/pages/create-project-page";
 import { DashboardPage } from "@/pages/dashboard-page";
 import { InterviewPage } from "@/pages/interview-page";
 import { LandingPage } from "@/pages/landing-page";
+import { KnowledgePage } from "@/pages/knowledge-page";
 import { LegalPage } from "@/pages/legal-page";
 import { LoginPage } from "@/pages/login-page";
 import { NotFoundPage } from "@/pages/not-found-page";
@@ -32,7 +33,7 @@ export function App() {
               <Route element={<ProjectOverviewPage />} path="overview" />
               <Route element={<InterviewPage />} path="interview" />
               <Route element={<RequirementsPage />} path="requirements" />
-              <Route element={<ProjectStagePage description="Map approved requirements to retrieved regulatory and policy evidence." eyebrow="Evidence mapping" title="Compliance" />} path="compliance" />
+              <Route element={<KnowledgePage />} path="compliance" />
               <Route element={<ProjectStagePage description="Review structured security and privacy findings linked to project requirements." eyebrow="Security review" title="Security" />} path="security" />
               <Route element={<ProjectStagePage description="Track business, technical, security, and compliance risks with clear mitigations." eyebrow="Risk management" title="Risk register" />} path="risks" />
               <Route element={<ProjectStagePage description="Compare deterministic score breakdowns before approving a delivery approach." eyebrow="Delivery planning" title="SDLC recommendation" />} path="sdlc" />

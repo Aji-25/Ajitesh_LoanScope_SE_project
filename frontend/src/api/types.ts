@@ -79,3 +79,7 @@ export type RequirementExtraction = {
 };
 
 export type RequirementList = { items: Requirement[]; total: number };
+
+export type KnowledgeDocument = { id: string; filename: string; content_type: string; version: string; jurisdiction: string; effective_date: string | null; status: string; page_count: number; created_at: string };
+export type EvidenceChunk = { chunk_id: string; document_id: string; filename: string; content: string; page_number: number | null; section: string | null; version: string; jurisdiction: string; effective_date: string | null; score: number };
+export type ComplianceMapping = { id: string; requirement_id: string; obligation: string; applicability: string; rationale: string; evidence_chunk_ids: string[]; citations: { filename: string; section: string | null; page: number | null; version: string; jurisdiction: string }[]; confidence: number; status: string; created_at: string };

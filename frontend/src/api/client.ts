@@ -26,7 +26,7 @@ export function clearAccessToken() {
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const headers = new Headers(options.headers);
-  if (options.body) headers.set("Content-Type", "application/json");
+  if (options.body && !(options.body instanceof FormData)) headers.set("Content-Type", "application/json");
   if (options.authenticated) {
     const token = getAccessToken();
     if (token) headers.set("Authorization", `Bearer ${token}`);
