@@ -1,0 +1,51 @@
+# Local documentation and development instructions
+*.[Mm][Dd]
+
+# Local assistant tooling
+.[Cc][Oo][Dd][Ee][Xx]*
+.[Cc][Ll][Aa][Uu][Dd][Ee]*
+[Cc][Oo][Dd][Ee][Xx]
+[Cc][Ll][Aa][Uu][Dd][Ee]
+[Cc][Oo][Dd][Ee][Xx][-._]*
+[Cc][Ll][Aa][Uu][Dd][Ee][-._]*
+.ai/
+.agents/
+.prompts/
+.instructions/
+.cursor/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# IDE and OS
+.DS_Store
+.idea/
+.vscode/
+
+# Logs
+*.log
+
+# Local uploads and generated output
+uploads/
+generated/
+
+# Coverage
+coverage/
+htmlcov/
+.coverage
