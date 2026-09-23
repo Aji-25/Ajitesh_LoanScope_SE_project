@@ -92,6 +92,12 @@ class Project(TimestampMixin, Base):
     sdlc_recommendations: Mapped[list[SDLCRecommendation]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
+    generated_artifacts: Mapped[list[GeneratedArtifact]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
+    evaluations: Mapped[list[EvaluationRun]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
 
 
 class Stakeholder(TimestampMixin, Base):
@@ -350,3 +356,30 @@ class SDLCRecommendation(TimestampMixin, Base):
     scoring_version: Mapped[str] = mapped_column(String(32), nullable=False)
     approval_status: Mapped[str] = mapped_column(String(32), default="draft", nullable=False)
     project: Mapped[Project] = relationship(back_populates="sdlc_recommendations")
+
+
+class GeneratedArtifact(TimestampMixin, Base):
+    __tablename__ = "generated_artifacts"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), index=True
+    )
+    artifact_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    version: Mapped[int] = mapped_column(default=1, nullable=False)
+    content: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    html_content: Mapped[str] = mapped_column(Text, nullable=False)
+    source_requirement_ids: Mapped[list[str]] = mapped_column(JSONB, default=list, nullable=False)
+    project: Mapped[Project] = relationship(back_populates="generated_artifacts")
+
+
+class EvaluationRun(TimestampMixin, Base):
+    __tablename__ = "evaluation_runs"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), index=True
+    )
+    metrics: Mapped[dict[str, float]] = mapped_column(JSONB, nullable=False)
+    passed: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    project: Mapped[Project] = relationship(back_populates="evaluations")
