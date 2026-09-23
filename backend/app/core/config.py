@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     bootstrap_user_email: str | None = None
     bootstrap_user_password: str | None = Field(default=None, min_length=12)
     bootstrap_user_name: str = "Development analyst"
+    llm_mode: str = "mock"
+    llm_model: str = "gpt-4.1-mini"
+    openai_api_key: str | None = None
 
     @property
     def allowed_origins(self) -> list[str]:

@@ -42,3 +42,40 @@ export type ProjectCreate = {
     organization?: string;
   };
 };
+
+export type Requirement = {
+  id: string;
+  project_id: string;
+  requirement_code: string;
+  statement: string;
+  categories: string[];
+  source_stakeholder: string;
+  priority: string | null;
+  assumptions: string[];
+  acceptance_criteria: string[];
+  confidence: number;
+  approval_status: string;
+  quality_findings: { kind: string; message: string; question: string }[];
+  clarification_status: string;
+  version: number;
+  created_at: string;
+};
+
+export type RequirementCandidate = {
+  statement: string;
+  categories: string[];
+  source: string;
+  priority: string | null;
+  assumptions: string[];
+  acceptance_criteria: string[];
+  confidence: number;
+  clarification_needed: boolean;
+  uncertainty_reason: string | null;
+};
+
+export type RequirementExtraction = {
+  extraction: { candidates: RequirementCandidate[]; summary: string };
+  persisted_requirements: Requirement[];
+};
+
+export type RequirementList = { items: Requirement[]; total: number };

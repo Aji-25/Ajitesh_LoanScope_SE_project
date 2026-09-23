@@ -75,6 +75,9 @@ class Project(TimestampMixin, Base):
     audit_events: Mapped[list[AuditEvent]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
+    workflow_runs: Mapped[list[WorkflowRun]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
 
 
 class Stakeholder(TimestampMixin, Base):
@@ -107,6 +110,24 @@ class Conversation(TimestampMixin, Base):
 
     project: Mapped[Project] = relationship(back_populates="conversations")
     stakeholder: Mapped[Stakeholder | None] = relationship(back_populates="conversations")
+    messages: Mapped[list[Message]] = relationship(
+        back_populates="conversation", cascade="all, delete-orphan"
+    )
+
+
+class Message(TimestampMixin, Base):
+    __tablename__ = "messages"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    conversation_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("conversations.id", ondelete="CASCADE"), index=True
+    )
+    role: Mapped[str] = mapped_column(String(32), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    source_name: Mapped[str] = mapped_column(String(160), nullable=False)
+    extraction_metadata: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, nullable=False)
+
+    conversation: Mapped[Conversation] = relationship(back_populates="messages")
 
 
 class Requirement(TimestampMixin, Base):
@@ -129,6 +150,13 @@ class Requirement(TimestampMixin, Base):
     risk_level: Mapped[str | None] = mapped_column(String(32))
     confidence: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     approval_status: Mapped[str] = mapped_column(String(32), default="draft", nullable=False)
+    quality_findings: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB, default=list, nullable=False
+    )
+    clarification_status: Mapped[str] = mapped_column(
+        String(32), default="not_required", nullable=False
+    )
+    version: Mapped[int] = mapped_column(default=1, nullable=False)
 
     project: Mapped[Project] = relationship(back_populates="requirements")
 
@@ -144,9 +172,7 @@ class Approval(TimestampMixin, Base):
     entity_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     assigned_role: Mapped[str] = mapped_column(String(64), nullable=False)
-    status: Mapped[str] = mapped_column(
-        String(32), default=ApprovalStatus.PENDING, nullable=False
-    )
+    status: Mapped[str] = mapped_column(String(32), default=ApprovalStatus.PENDING, nullable=False)
     decision_comment: Mapped[str | None] = mapped_column(Text)
     decided_by_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
     decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -175,3 +201,19 @@ class AuditEvent(Base):
     )
 
     project: Mapped[Project | None] = relationship(back_populates="audit_events")
+
+
+class WorkflowRun(TimestampMixin, Base):
+    __tablename__ = "workflow_runs"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), index=True
+    )
+    thread_id: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), default="running", nullable=False)
+    current_node: Mapped[str] = mapped_column(String(80), nullable=False)
+    state_snapshot: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, nullable=False)
+    error_message: Mapped[str | None] = mapped_column(Text)
+
+    project: Mapped[Project] = relationship(back_populates="workflow_runs")
