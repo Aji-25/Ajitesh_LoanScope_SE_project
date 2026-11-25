@@ -13,6 +13,8 @@ class ComplianceAssessment(BaseModel):
     evidence_chunk_ids: list[uuid.UUID]
     citations: list[dict[str, str | int | None]]
     confidence: float
+    gap_status: str
+    human_review_required: bool
 
 
 class ComplianceMappingResponse(BaseModel):
@@ -26,6 +28,8 @@ class ComplianceMappingResponse(BaseModel):
     citations: list[dict[str, str | int | None]]
     confidence: float
     status: str
+    gap_status: str
+    human_review_required: bool
     created_at: datetime
 
 

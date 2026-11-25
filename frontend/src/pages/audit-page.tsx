@@ -1,4 +1,9 @@
-import { Archive, ChartBar, SpinnerGap, WarningCircle } from "@phosphor-icons/react";
+import {
+  Archive,
+  ChartBar,
+  SpinnerGap,
+  WarningCircle,
+} from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { apiRequest } from "@/api/client";
@@ -7,8 +12,124 @@ import type { ProjectOutletContext } from "@/components/project-layout";
 import { Button } from "@/components/ui/button";
 
 export function AuditPage() {
-  const { project } = useOutletContext<ProjectOutletContext>(); const [events, setEvents] = useState<AuditEvent[]>([]); const [evaluation, setEvaluation] = useState<Evaluation | null>(null); const [busy, setBusy] = useState(false); const [error, setError] = useState("");
-  useEffect(() => { apiRequest<{ events: AuditEvent[]; evaluation: Evaluation | null }>(`/projects/${project.id}/audit`, { authenticated: true }).then((data) => { setEvents(data.events); setEvaluation(data.evaluation); }).catch((reason: Error) => setError(reason.message)); }, [project.id]);
-  async function run() { setBusy(true); setError(""); try { setEvaluation(await apiRequest<Evaluation>(`/projects/${project.id}/evaluations`, { method: "POST", authenticated: true })); } catch (reason) { setError(reason instanceof Error ? reason.message : "Evaluation failed."); } finally { setBusy(false); } }
-  return <div><p className="text-sm font-semibold text-[#d9ff76]">Traceability and quality</p><h1 className="mt-3 text-4xl font-semibold">Audit and evaluation</h1><p className="mt-4 max-w-2xl text-[#9b9b9b]">Inspect significant human and system actions, then snapshot measurable readiness metrics.</p><Button onClick={run} disabled={busy} className="mt-6">{busy ? <SpinnerGap className="animate-spin" /> : <ChartBar />}Run evaluation</Button>{error && <p role="alert" className="mt-5 flex gap-2 text-red-200"><WarningCircle />{error}</p>}{evaluation && <section className="mt-8 rounded-2xl border border-white/10 bg-[#181818] p-6"><div className="flex justify-between gap-3"><h2 className="text-xl font-semibold">Latest quality snapshot</h2><span className={evaluation.passed ? "text-[#d9ff76]" : "text-amber-200"}>{evaluation.passed ? "Passed" : "Needs review"}</span></div><p className="mt-2 text-sm text-[#888]">{evaluation.summary}</p><div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">{Object.entries(evaluation.metrics).map(([name, value]) => <div key={name} className="rounded-xl bg-[#111] p-4"><p className="text-2xl font-semibold text-[#d9ff76]">{value}%</p><p className="mt-1 text-xs capitalize text-[#888]">{name.replaceAll("_", " ")}</p></div>)}</div></section>}<section className="mt-8"><h2 className="flex items-center gap-2 text-xl font-semibold"><Archive className="text-[#d9ff76]" />Audit timeline</h2>{events.length === 0 ? <p className="mt-4 rounded-xl border border-dashed border-white/10 p-8 text-center text-[#888]">No audit events recorded yet.</p> : <div className="mt-4 space-y-3">{events.map((event) => <article key={event.id} className="rounded-xl border border-white/10 bg-[#181818] p-5"><div className="flex flex-wrap justify-between gap-2"><p className="font-medium">{event.action}</p><time className="text-xs text-[#777]">{new Date(event.created_at).toLocaleString()}</time></div><p className="mt-2 text-sm text-[#888]">{event.actor_type}{event.agent_name ? ` · ${event.agent_name}` : ""} · {event.entity_type}</p></article>)}</div>}</section></div>;
+  const { project } = useOutletContext<ProjectOutletContext>();
+  const [events, setEvents] = useState<AuditEvent[]>([]);
+  const [evaluation, setEvaluation] = useState<Evaluation | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    apiRequest<{ events: AuditEvent[]; evaluation: Evaluation | null }>(
+      `/projects/${project.id}/audit`,
+      { authenticated: true },
+    )
+      .then((data) => {
+        setEvents(data.events);
+        setEvaluation(data.evaluation);
+      })
+      .catch((reason: Error) => setError(reason.message));
+  }, [project.id]);
+  async function run() {
+    setBusy(true);
+    setError("");
+    try {
+      const latestEvaluation = await apiRequest<Evaluation>(
+        `/projects/${project.id}/evaluations`,
+        {
+          method: "POST",
+          authenticated: true,
+        },
+      );
+      const audit = await apiRequest<{
+        events: AuditEvent[];
+        evaluation: Evaluation | null;
+      }>(`/projects/${project.id}/audit`, { authenticated: true });
+      setEvaluation(latestEvaluation);
+      setEvents(audit.events);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Evaluation failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div>
+      <p className="text-sm font-semibold text-[#d9ff76]">
+        Traceability and quality
+      </p>
+      <h1 className="mt-3 text-4xl font-semibold">Audit and evaluation</h1>
+      <p className="mt-4 max-w-2xl text-[#9b9b9b]">
+        Inspect significant human and system actions, then snapshot measurable
+        readiness metrics.
+      </p>
+      <Button onClick={run} disabled={busy} className="mt-6">
+        {busy ? <SpinnerGap className="animate-spin" /> : <ChartBar />}Run
+        evaluation
+      </Button>
+      {error && (
+        <p role="alert" className="mt-5 flex gap-2 text-red-200">
+          <WarningCircle />
+          {error}
+        </p>
+      )}
+      {evaluation && (
+        <section className="mt-8 rounded-2xl border border-white/10 bg-[#181818] p-6">
+          <div className="flex justify-between gap-3">
+            <h2 className="text-xl font-semibold">Latest quality snapshot</h2>
+            <span
+              className={
+                evaluation.passed ? "text-[#d9ff76]" : "text-amber-200"
+              }
+            >
+              {evaluation.passed ? "Passed" : "Needs review"}
+            </span>
+          </div>
+          <p className="mt-2 text-sm text-[#888]">{evaluation.summary}</p>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            {Object.entries(evaluation.metrics).map(([name, value]) => (
+              <div key={name} className="rounded-xl bg-[#111] p-4">
+                <p className="text-2xl font-semibold text-[#d9ff76]">
+                  {value}%
+                </p>
+                <p className="mt-1 text-xs capitalize text-[#888]">
+                  {name.replaceAll("_", " ")}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+      <section className="mt-8">
+        <h2 className="flex items-center gap-2 text-xl font-semibold">
+          <Archive className="text-[#d9ff76]" />
+          Audit timeline
+        </h2>
+        {events.length === 0 ? (
+          <p className="mt-4 rounded-xl border border-dashed border-white/10 p-8 text-center text-[#888]">
+            No audit events recorded yet.
+          </p>
+        ) : (
+          <div className="mt-4 space-y-3">
+            {events.map((event) => (
+              <article
+                key={event.id}
+                className="rounded-xl border border-white/10 bg-[#181818] p-5"
+              >
+                <div className="flex flex-wrap justify-between gap-2">
+                  <p className="font-medium">{event.action}</p>
+                  <time className="text-xs text-[#aaa]">
+                    {new Date(event.created_at).toLocaleString()}
+                  </time>
+                </div>
+                <p className="mt-2 text-sm text-[#888]">
+                  {event.actor_type}
+                  {event.agent_name ? ` · ${event.agent_name}` : ""} ·{" "}
+                  {event.entity_type}
+                </p>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  );
 }

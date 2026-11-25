@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException
 
 from app.api.dependencies import CurrentUser, SessionDependency
 from app.schemas.approval import ApprovalDecision, ApprovalList, ApprovalResponse
-from app.services.approvals import ApprovalService
+from app.services.approvals import ApprovalConflictError, ApprovalService
 
 router = APIRouter(prefix="/projects/{project_id}/approvals", tags=["approvals"])
 
@@ -37,7 +37,10 @@ async def decide_approval(
     user: CurrentUser,
     session: SessionDependency,
 ) -> ApprovalResponse:
-    result = await ApprovalService(session).decide(project_id, approval_id, user.id, data)
+    try:
+        result = await ApprovalService(session).decide(project_id, approval_id, user.id, data)
+    except ApprovalConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     if result is None:
         raise HTTPException(status_code=404, detail="Approval not found.")
     return result

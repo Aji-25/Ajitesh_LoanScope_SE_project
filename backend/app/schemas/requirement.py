@@ -62,3 +62,9 @@ class RequirementExtractionResponse(BaseModel):
 class RequirementListResponse(BaseModel):
     items: list[RequirementResponse]
     total: int
+
+
+class RequirementClarificationInput(BaseModel):
+    statement: str = Field(min_length=10, max_length=5000)
+    acceptance_criteria: list[str] = Field(min_length=1, max_length=20)
+    reason: str = Field(default="Stakeholder clarification", min_length=3, max_length=255)

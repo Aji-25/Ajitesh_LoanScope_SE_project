@@ -7,6 +7,7 @@ from pytest import MonkeyPatch
 from app.main import app
 from app.models.database import Role, User
 from app.models.domain import RoleName
+from app.schemas.auth import LoginRequest
 from app.services.auth import (
     AuthService,
     create_access_token,
@@ -31,6 +32,11 @@ def test_access_token_round_trip() -> None:
 
     assert decode_access_token(token) == user_id
     assert decode_access_token(f"{token}invalid") is None
+
+
+def test_login_normalizes_email_whitespace_and_case() -> None:
+    request = LoginRequest(email="  PRIYA.RAMAN@EXAMPLE.COM ", password="password")
+    assert str(request.email) == "priya.raman@example.com"
 
 
 async def test_protected_route_rejects_anonymous_request() -> None:

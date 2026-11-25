@@ -24,6 +24,7 @@ class EvaluationCounts:
     compliance_mappings: int
     grounded_mappings: int
     risks: int
+    approvals: int
     approved: int
     artifacts: int
 
@@ -31,11 +32,12 @@ class EvaluationCounts:
 def calculate_metrics(counts: EvaluationCounts) -> dict[str, float]:
     requirements = max(1, counts.requirements)
     mappings = max(1, counts.compliance_mappings)
+    approvals = max(1, counts.approvals)
     return {
         "requirement_completeness": round(counts.complete_requirements / requirements * 100, 1),
         "evidence_grounding": round(counts.grounded_mappings / mappings * 100, 1),
         "risk_coverage": round(min(counts.risks / requirements, 1) * 100, 1),
-        "approval_progress": round(min(counts.approved / requirements, 1) * 100, 1),
+        "approval_progress": round(min(counts.approved / approvals, 1) * 100, 1),
         "artifact_coverage": round(min(counts.artifacts / 9, 1) * 100, 1),
     }
 
@@ -73,14 +75,14 @@ class EvaluationService:
             )
             or 0
         )
-        approved = (
-            await self.session.scalar(
-                select(func.count(Approval.id)).where(
-                    Approval.project_id == project_id, Approval.status == "approved"
-                )
+        approvals, approved = (
+            await self.session.execute(
+                select(
+                    func.count(Approval.id),
+                    func.count(Approval.id).filter(Approval.status == "approved"),
+                ).where(Approval.project_id == project_id)
             )
-            or 0
-        )
+        ).one()
         artifacts = (
             await self.session.scalar(
                 select(func.count(GeneratedArtifact.id)).where(
@@ -98,6 +100,7 @@ class EvaluationService:
             len(mappings),
             sum(bool(item.evidence_chunk_ids) for item in mappings),
             risks,
+            approvals,
             approved,
             artifacts,
         )
@@ -112,6 +115,18 @@ class EvaluationService:
             else "Quality gaps remain; review metrics before approval.",
         )
         self.session.add(record)
+        await self.session.flush()
+        self.session.add(
+            AuditEvent(
+                project_id=project_id,
+                actor_type="system",
+                agent_name="evaluation_service",
+                action="Evaluated project quality",
+                entity_type="evaluation_run",
+                entity_id=record.id,
+                event_metadata={"passed": passed, "metrics": metrics},
+            )
+        )
         await self.session.commit()
         return EvaluationResponse.model_validate(record)
 

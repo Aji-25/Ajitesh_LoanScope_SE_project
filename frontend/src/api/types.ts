@@ -79,10 +79,11 @@ export type RequirementExtraction = {
 };
 
 export type RequirementList = { items: Requirement[]; total: number };
+export type RequirementWorkflow = { id: string; thread_id: string; status: string; current_node: string; state: { statements?: string[]; clarification_questions?: string[]; clarification_indices?: number[]; iteration?: number; max_iterations?: number; error?: string | null } };
 
 export type KnowledgeDocument = { id: string; filename: string; content_type: string; version: string; jurisdiction: string; effective_date: string | null; status: string; page_count: number; created_at: string };
 export type EvidenceChunk = { chunk_id: string; document_id: string; filename: string; content: string; page_number: number | null; section: string | null; version: string; jurisdiction: string; effective_date: string | null; score: number };
-export type ComplianceMapping = { id: string; requirement_id: string; obligation: string; applicability: string; rationale: string; evidence_chunk_ids: string[]; citations: { filename: string; section: string | null; page: number | null; version: string; jurisdiction: string }[]; confidence: number; status: string; created_at: string };
+export type ComplianceMapping = { id: string; requirement_id: string; obligation: string; applicability: string; rationale: string; evidence_chunk_ids: string[]; citations: { filename: string; section: string | null; page: number | null; version: string; jurisdiction: string }[]; confidence: number; status: string; gap_status: string; human_review_required: boolean; created_at: string };
 export type SecurityFinding = { id: string; requirement_id: string; category: string; title: string; description: string; severity: string; recommendation: string; status: string; created_at: string };
 export type Risk = { id: string; requirement_id: string | null; risk_code: string; category: string; description: string; likelihood: number; impact: number; score: number; mitigation: string; owner_role: string; status: string; created_at: string };
 export type Approval = { id: string; entity_type: string; entity_id: string | null; title: string; assigned_role: string; status: string; decision_comment: string | null; workflow_thread_id: string | null; request_payload: Record<string, unknown>; decision_payload: Record<string, unknown>; created_at: string; decided_at: string | null };

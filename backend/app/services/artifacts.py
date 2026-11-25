@@ -2,10 +2,11 @@ import html
 import uuid
 from typing import Any, cast
 
-from sqlalchemy import delete, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.database import (
+    AuditEvent,
     ComplianceMapping,
     GeneratedArtifact,
     Project,
@@ -14,6 +15,7 @@ from app.models.database import (
     SDLCRecommendation,
 )
 from app.schemas.artifact import ArtifactList, ArtifactResponse
+from app.services.sdlc import SCORING_VERSION
 
 
 def render_html(title: str, sections: list[dict[str, Any]]) -> str:
@@ -60,6 +62,7 @@ def build_artifact_payloads(
         }
         for item in requirements
     ]
+    requirement_codes = {item.id: item.requirement_code for item in requirements}
     return [
         (
             "srs",
@@ -107,7 +110,16 @@ def build_artifact_payloads(
                 {
                     "heading": "Risks",
                     "content": [
-                        {"id": item.risk_code, "score": item.score, "mitigation": item.mitigation}
+                        {
+                            "id": item.risk_code,
+                            "requirement_id": (
+                                requirement_codes.get(item.requirement_id)
+                                if item.requirement_id is not None
+                                else None
+                            ),
+                            "score": item.score,
+                            "mitigation": item.mitigation,
+                        }
                         for item in risks
                     ],
                 }
@@ -121,7 +133,9 @@ def build_artifact_payloads(
                     "heading": "Mappings",
                     "content": [
                         {
-                            "requirement_id": str(item.requirement_id),
+                            "requirement_id": requirement_codes.get(
+                                item.requirement_id, str(item.requirement_id)
+                            ),
                             "obligation": item.obligation,
                             "citations": item.citations,
                         }
@@ -193,13 +207,21 @@ class ArtifactService:
         )
         sdlc = await self.session.scalar(
             select(SDLCRecommendation)
-            .where(SDLCRecommendation.project_id == project_id)
+            .where(
+                SDLCRecommendation.project_id == project_id,
+                SDLCRecommendation.scoring_version == SCORING_VERSION,
+            )
             .order_by(SDLCRecommendation.created_at.desc())
             .limit(1)
         )
-        await self.session.execute(
-            delete(GeneratedArtifact).where(GeneratedArtifact.project_id == project_id)
-        )
+        version_rows = (
+            await self.session.execute(
+                select(GeneratedArtifact.artifact_type, func.max(GeneratedArtifact.version))
+                .where(GeneratedArtifact.project_id == project_id)
+                .group_by(GeneratedArtifact.artifact_type)
+            )
+        ).all()
+        next_versions = {artifact_type: maximum + 1 for artifact_type, maximum in version_rows}
         artifacts: list[GeneratedArtifact] = []
         source_ids = [item.requirement_code for item in requirements]
         for artifact_type, title, sections in build_artifact_payloads(
@@ -212,9 +234,23 @@ class ArtifactService:
                 content={"sections": sections},
                 html_content=render_html(title, sections),
                 source_requirement_ids=source_ids,
+                version=next_versions.get(artifact_type, 1),
             )
             self.session.add(artifact)
             artifacts.append(artifact)
+        await self.session.flush()
+        for artifact in artifacts:
+            self.session.add(
+                AuditEvent(
+                    project_id=project_id,
+                    actor_type="system",
+                    agent_name="documentation_service",
+                    action="Generated project artefact",
+                    entity_type="generated_artifact",
+                    entity_id=artifact.id,
+                    event_metadata={"artifact_type": artifact.artifact_type},
+                )
+            )
         await self.session.commit()
         return ArtifactList(items=[ArtifactResponse.model_validate(item) for item in artifacts])
 
@@ -234,13 +270,17 @@ class ArtifactService:
         return ArtifactList(items=[ArtifactResponse.model_validate(item) for item in items])
 
     async def download(
-        self, artifact_id: uuid.UUID, owner_id: uuid.UUID
+        self, project_id: uuid.UUID, artifact_id: uuid.UUID, owner_id: uuid.UUID
     ) -> GeneratedArtifact | None:
         return cast(
             GeneratedArtifact | None,
             await self.session.scalar(
                 select(GeneratedArtifact)
                 .join(Project)
-                .where(GeneratedArtifact.id == artifact_id, Project.created_by_id == owner_id)
+                .where(
+                    GeneratedArtifact.id == artifact_id,
+                    GeneratedArtifact.project_id == project_id,
+                    Project.created_by_id == owner_id,
+                )
             ),
         )

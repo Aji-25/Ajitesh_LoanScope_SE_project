@@ -51,3 +51,30 @@ def test_html_renderer_escapes_source_content() -> None:
     output = render_html("SRS", [{"heading": "Scope", "content": "<script>alert(1)</script>"}])
     assert "<script>" not in output
     assert "&lt;script&gt;" in output
+
+
+def test_compliance_and_risk_outputs_use_requirement_codes() -> None:
+    project, requirement = inputs()
+    compliance = cast(
+        Any,
+        SimpleNamespace(
+            id="mapping-1",
+            requirement_id=requirement.id,
+            obligation="Capture consent",
+            citations=[{"filename": "policy.txt"}],
+        ),
+    )
+    risk = cast(
+        Any,
+        SimpleNamespace(
+            requirement_id=requirement.id,
+            risk_code="RSK-001",
+            score=15,
+            mitigation="Encrypt evidence",
+        ),
+    )
+    payloads = build_artifact_payloads(project, [requirement], [risk], [compliance], None)
+    compliance_matrix = next(item for item in payloads if item[0] == "compliance_matrix")
+    risk_register = next(item for item in payloads if item[0] == "risk_register")
+    assert compliance_matrix[2][0]["content"][0]["requirement_id"] == "REQ-007"
+    assert risk_register[2][0]["content"][0]["requirement_id"] == "REQ-007"

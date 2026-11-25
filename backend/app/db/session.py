@@ -26,7 +26,7 @@ async def database_is_ready() -> bool:
     try:
         async with engine.connect() as connection:
             await connection.execute(text("SELECT 1"))
-    except SQLAlchemyError:
+    except (OSError, SQLAlchemyError):
         logger.exception("Database readiness check failed")
         return False
     return True

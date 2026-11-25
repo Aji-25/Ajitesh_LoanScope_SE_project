@@ -1,10 +1,11 @@
 import uuid
 
+from langgraph.types import Command
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.database import Project, Requirement, WorkflowRun
-from app.schemas.workflow import WorkflowResponse
+from app.schemas.workflow import WorkflowResponse, WorkflowResume
 from app.workflows.checkpoints import postgres_checkpointer
 from app.workflows.requirements import build_requirement_graph, initial_state
 
@@ -28,6 +29,9 @@ class WorkflowService:
                 .order_by(Requirement.requirement_code)
             )
         )
+        # Checkpointer setup creates an index concurrently. Release the read transaction first
+        # so PostgreSQL does not wait on this request's own virtual transaction.
+        await self.session.commit()
         thread_id = f"requirements-{project_id}-{uuid.uuid4()}"
         state = initial_state(
             str(project_id),
@@ -51,12 +55,13 @@ class WorkflowService:
             self.session.add(run)
             await self.session.commit()
             raise
-        snapshot = dict(output)
+        snapshot = {key: output[key] for key in state if key in output}
+        interrupted = bool(output.get("__interrupt__"))
         run = WorkflowRun(
             project_id=project_id,
             thread_id=thread_id,
-            status=str(snapshot["status"]),
-            current_node="finish",
+            status="awaiting_clarification" if interrupted else str(snapshot["status"]),
+            current_node="clarify" if interrupted else "finish",
             state_snapshot=snapshot,
         )
         self.session.add(run)
@@ -64,6 +69,60 @@ class WorkflowService:
         return WorkflowResponse(
             id=run.id,
             thread_id=thread_id,
+            status=run.status,
+            current_node=run.current_node,
+            state=snapshot,
+        )
+
+    async def latest(self, project_id: uuid.UUID, owner_id: uuid.UUID) -> WorkflowResponse | None:
+        run = await self.session.scalar(
+            select(WorkflowRun)
+            .join(Project)
+            .where(WorkflowRun.project_id == project_id, Project.created_by_id == owner_id)
+            .order_by(WorkflowRun.created_at.desc())
+            .limit(1)
+        )
+        if run is None:
+            return None
+        return WorkflowResponse(
+            id=run.id,
+            thread_id=run.thread_id,
+            status=run.status,
+            current_node=run.current_node,
+            state=run.state_snapshot,
+        )
+
+    async def resume(
+        self,
+        run_id: uuid.UUID,
+        owner_id: uuid.UUID,
+        data: WorkflowResume,
+    ) -> WorkflowResponse | None:
+        run = await self.session.scalar(
+            select(WorkflowRun)
+            .join(Project)
+            .where(WorkflowRun.id == run_id, Project.created_by_id == owner_id)
+        )
+        if run is None:
+            return None
+        if run.status != "awaiting_clarification":
+            raise ValueError("This workflow is not waiting for clarification.")
+        async with postgres_checkpointer() as saver:
+            graph = build_requirement_graph(saver)
+            output = await graph.ainvoke(
+                Command(resume={"clarifications": data.clarifications}),
+                {"configurable": {"thread_id": run.thread_id}},
+            )
+        state_keys = set(initial_state("", [], []))
+        snapshot = {key: output[key] for key in state_keys if key in output}
+        interrupted = bool(output.get("__interrupt__"))
+        run.status = "awaiting_clarification" if interrupted else str(snapshot["status"])
+        run.current_node = "clarify" if interrupted else "finish"
+        run.state_snapshot = snapshot
+        await self.session.commit()
+        return WorkflowResponse(
+            id=run.id,
+            thread_id=run.thread_id,
             status=run.status,
             current_node=run.current_node,
             state=snapshot,

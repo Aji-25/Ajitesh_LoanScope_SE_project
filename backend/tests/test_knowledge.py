@@ -1,4 +1,6 @@
-from app.services.knowledge import chunk_text, clean_text, deterministic_embedding
+import pytest
+
+from app.services.knowledge import chunk_text, clean_text, deterministic_embedding, parse_content
 
 
 def test_clean_and_chunk_preserve_overlap() -> None:
@@ -22,3 +24,29 @@ def test_related_text_shares_embedding_dimensions() -> None:
     related = deterministic_embedding("verify applicant identity evidence")
     dot_product = sum(left * right for left, right in zip(identity, related, strict=True))
     assert dot_product > 0.5
+
+
+def test_irrelevant_text_has_no_embedding_similarity() -> None:
+    policy = deterministic_embedding("applicant consent identity verification")
+    irrelevant = deterministic_embedding("banana astronomy cooking")
+    dot_product = sum(left * right for left, right in zip(policy, irrelevant, strict=True))
+    assert dot_product == 0.0
+
+
+@pytest.mark.parametrize(
+    ("content_type", "data", "message"),
+    [
+        ("application/pdf", b"not a pdf", "PDF file is corrupt"),
+        (
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            b"not a docx",
+            "DOCX file is corrupt",
+        ),
+        ("text/plain", b"", "document is empty"),
+    ],
+)
+def test_parse_content_rejects_empty_or_corrupt_documents(
+    content_type: str, data: bytes, message: str
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        parse_content(data, content_type)

@@ -16,6 +16,7 @@ import { LoginPage } from "@/pages/login-page";
 import { NotFoundPage } from "@/pages/not-found-page";
 import { ProjectOverviewPage } from "@/pages/project-overview-page";
 import { RequirementsPage } from "@/pages/requirements-page";
+import { RegisterPage } from "@/pages/register-page";
 import { SecurityRiskPage } from "@/pages/security-risk-page";
 import { SDLCPage } from "@/pages/sdlc-page";
 
@@ -26,6 +27,7 @@ export function App() {
         <Routes>
           <Route element={<LandingPage />} path="/" />
           <Route element={<LoginPage />} path="/login" />
+          <Route element={<RegisterPage />} path="/register" />
           <Route element={<LegalPage title="Privacy" />} path="/privacy" />
           <Route element={<LegalPage title="Terms" />} path="/terms" />
           <Route element={<ProtectedRoute />}>

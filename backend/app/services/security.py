@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.database import Project, Requirement, Risk, SecurityFinding
+from app.models.database import AuditEvent, Project, Requirement, Risk, SecurityFinding
 from app.schemas.security import RiskResponse, SecurityFindingResponse, SecurityRiskResponse
 
 
@@ -114,6 +114,23 @@ class SecurityRiskService:
                 )
                 self.session.add(risk)
                 risks.append(risk)
+        await self.session.flush()
+        for finding in findings:
+            self.session.add(
+                AuditEvent(
+                    project_id=project_id,
+                    actor_type="agent",
+                    agent_name="security_agent",
+                    action="Created security finding",
+                    entity_type="security_finding",
+                    entity_id=finding.id,
+                    event_metadata={
+                        "requirement_id": str(finding.requirement_id),
+                        "severity": finding.severity,
+                        "category": finding.category,
+                    },
+                )
+            )
         await self.session.commit()
         return SecurityRiskResponse(
             findings=[SecurityFindingResponse.model_validate(item) for item in findings],

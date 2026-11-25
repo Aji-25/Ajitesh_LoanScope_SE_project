@@ -13,6 +13,8 @@ class ComplianceAgent:
                 evidence_chunk_ids=[],
                 citations=[],
                 confidence=0.0,
+                gap_status="insufficient_evidence",
+                human_review_required=True,
             )
         strongest = data.evidence[0]
         return ComplianceAssessment(
@@ -34,4 +36,6 @@ class ComplianceAgent:
                 for item in data.evidence
             ],
             confidence=min(0.95, strongest.score),
+            gap_status="review_required",
+            human_review_required=True,
         )

@@ -1,0 +1,18 @@
+Clarifi Test Lending Policy
+Version 1.0
+Jurisdiction: India
+
+Section KYC-1 Identity Verification
+Every personal-loan applicant must complete identity verification before a loan decision is issued. PAN and government-issued identity evidence must be validated.
+
+Section CONSENT-1 Applicant Consent
+Explicit applicant consent must be collected before personal or financial information is stored or processed for underwriting.
+
+Section SECURITY-1 Document Protection
+Uploaded PAN, identity, and income documents must be encrypted in transit and at rest. Access must be limited to authorized underwriting personnel and recorded in an audit log.
+
+Section UW-1 Manual Underwriting
+Applications above INR 500,000 require documented manual underwriting approval before final loan approval.
+
+Section RETENTION-1 Data Retention
+Applicant documents must be retained only for the approved retention period and securely deleted when the period expires.

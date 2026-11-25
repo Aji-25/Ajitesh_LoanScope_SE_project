@@ -43,6 +43,61 @@ async def test_requirement_agent_exposes_uncertainty_for_vague_language() -> Non
     assert result.candidates[0].acceptance_criteria == []
 
 
+async def test_requirement_agent_normalizes_customer_capability_grammar() -> None:
+    result = await RequirementAgent(DeterministicLLMService()).run(
+        RequirementExtractionInput(
+            project_id=uuid.uuid4(),
+            stakeholder_text="Customers should be able to apply for a personal loan online.",
+            source_stakeholder="Loan Operations Manager",
+        )
+    )
+
+    assert result.candidates[0].statement == (
+        "The system shall allow customers to apply for a personal loan online."
+    )
+
+
+@pytest.mark.parametrize(
+    ("stakeholder_text", "expected"),
+    [
+        (
+            "The system must encrypt KYC documents at rest.",
+            "The system shall encrypt KYC documents at rest.",
+        ),
+        (
+            "Applicants can upload identity evidence before submitting the application.",
+            "The system shall allow applicants to upload identity evidence before submitting "
+            "the application.",
+        ),
+        (
+            "Every loan application must receive an eligibility decision.",
+            "The system shall ensure every loan application receive an eligibility decision.",
+        ),
+        (
+            "Every application above ₹500,000 requires manual underwriting approval.",
+            "The system shall require manual underwriting approval for every application above "
+            "₹500,000.",
+        ),
+        (
+            "High value loans need extra approval.",
+            "The system shall require extra approval for high value loans.",
+        ),
+    ],
+)
+async def test_requirement_agent_normalizes_common_stakeholder_grammar(
+    stakeholder_text: str, expected: str
+) -> None:
+    result = await RequirementAgent(DeterministicLLMService()).run(
+        RequirementExtractionInput(
+            project_id=uuid.uuid4(),
+            stakeholder_text=stakeholder_text,
+            source_stakeholder="Validation Stakeholder",
+        )
+    )
+
+    assert result.candidates[0].statement == expected
+
+
 class MalformedLLM(LLMService):
     async def structured_generate(
         self,

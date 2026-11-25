@@ -5,7 +5,10 @@ import type { User } from "@/api/types";
 export type AuthContextValue = {
   user: User | null;
   loading: boolean;
+  sessionError: string;
+  retrySession: () => void;
   login: (email: string, password: string) => Promise<void>;
+  register: (fullName: string, email: string, password: string) => Promise<void>;
   logout: () => void;
 };
 

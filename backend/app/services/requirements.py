@@ -5,8 +5,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.requirement import RequirementAgent
 from app.db.repositories.audit import AuditRepository
-from app.models.database import AuditEvent, Conversation, Message, Project, Requirement
+from app.models.database import (
+    AuditEvent,
+    Conversation,
+    Message,
+    Project,
+    Requirement,
+    RequirementVersion,
+)
 from app.schemas.requirement import (
+    RequirementClarificationInput,
     RequirementExtractionInput,
     RequirementExtractionResponse,
     RequirementListResponse,
@@ -60,6 +68,7 @@ class RequirementService:
         )
         saved: list[Requirement] = []
         for index, item in enumerate(result.candidates, start=(existing_count or 0) + 1):
+            findings = analyze_statement(item.statement, item.acceptance_criteria)
             requirement = Requirement(
                 project_id=project_id,
                 requirement_code=f"REQ-{index:03d}",
@@ -70,6 +79,8 @@ class RequirementService:
                 assumptions=item.assumptions,
                 acceptance_criteria=item.acceptance_criteria,
                 confidence=item.confidence,
+                quality_findings=[finding.as_dict() for finding in findings],
+                clarification_status="required" if findings else "not_required",
             )
             self.session.add(requirement)
             saved.append(requirement)
@@ -146,3 +157,54 @@ class RequirementService:
             ambiguity_count=ambiguity_count,
             conflict_count=conflict_count,
         )
+
+    async def clarify(
+        self,
+        project_id: uuid.UUID,
+        requirement_id: uuid.UUID,
+        owner_id: uuid.UUID,
+        data: RequirementClarificationInput,
+    ) -> RequirementResponse | None:
+        requirement = await self.session.scalar(
+            select(Requirement)
+            .join(Project, Project.id == Requirement.project_id)
+            .where(
+                Requirement.id == requirement_id,
+                Requirement.project_id == project_id,
+                Project.created_by_id == owner_id,
+            )
+        )
+        if requirement is None:
+            return None
+        self.session.add(
+            RequirementVersion(
+                requirement_id=requirement.id,
+                version=requirement.version,
+                statement=requirement.statement,
+                acceptance_criteria=requirement.acceptance_criteria,
+                quality_findings=requirement.quality_findings,
+                changed_by_id=owner_id,
+                change_reason=data.reason,
+            )
+        )
+        requirement.statement = data.statement.strip()
+        requirement.acceptance_criteria = [item.strip() for item in data.acceptance_criteria]
+        requirement.version += 1
+        findings = analyze_statement(requirement.statement, requirement.acceptance_criteria)
+        requirement.quality_findings = [finding.as_dict() for finding in findings]
+        requirement.clarification_status = "required" if findings else "resolved"
+        requirement.confidence = max(requirement.confidence, 0.9 if not findings else 0.7)
+        AuditRepository(self.session).add(
+            AuditEvent(
+                project_id=project_id,
+                actor_type="user",
+                actor_id=owner_id,
+                action="Clarified requirement",
+                entity_type="requirement",
+                entity_id=requirement.id,
+                event_metadata={"version": requirement.version, "reason": data.reason},
+            )
+        )
+        await self.session.commit()
+        await self.session.refresh(requirement)
+        return RequirementResponse.model_validate(requirement)

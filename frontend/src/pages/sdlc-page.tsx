@@ -1,14 +1,154 @@
 import { ChartBar, SpinnerGap, WarningCircle } from "@phosphor-icons/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { apiRequest } from "@/api/client";
+import { ApiError, apiRequest } from "@/api/client";
 import type { SDLCRecommendation } from "@/api/types";
 import type { ProjectOutletContext } from "@/components/project-layout";
 import { Button } from "@/components/ui/button";
 
-const fields = [["requirements_volatility", "Requirements volatility"], ["compliance_criticality", "Compliance criticality"], ["technical_risk", "Technical risk"], ["customer_collaboration", "Customer collaboration"], ["release_frequency", "Release frequency"], ["team_experience", "Team experience"]] as const;
+const fields = [
+  ["requirements_volatility", "Requirements volatility"],
+  ["compliance_criticality", "Compliance criticality"],
+  ["technical_risk", "Technical risk"],
+  ["customer_collaboration", "Customer collaboration"],
+  ["release_frequency", "Release frequency"],
+  ["team_experience", "Team experience"],
+] as const;
+const modelLabels: Record<string, string> = {
+  waterfall: "Waterfall model",
+  v_shaped: "V-shaped",
+  spiral: "Spiral",
+  prototype: "Prototype",
+  rapid_application_development: "Rapid application development (RAD)",
+  iterative_incremental: "Iterative/incremental",
+  agile: "Agile",
+};
 export function SDLCPage() {
-  const { project } = useOutletContext<ProjectOutletContext>(); const [values, setValues] = useState<Record<string, number>>(Object.fromEntries(fields.map(([key]) => [key, 3]))); const [result, setResult] = useState<SDLCRecommendation | null>(null); const [busy, setBusy] = useState(false); const [error, setError] = useState("");
-  async function calculate() { setBusy(true); setError(""); try { setResult(await apiRequest<SDLCRecommendation>(`/projects/${project.id}/sdlc/recommend`, { method: "POST", authenticated: true, body: JSON.stringify(values) })); } catch (reason) { setError(reason instanceof Error ? reason.message : "Scoring failed."); } finally { setBusy(false); } }
-  return <div><p className="text-sm font-semibold text-[#d9ff76]">Deterministic delivery planning</p><h1 className="mt-3 text-4xl font-semibold">SDLC recommendation</h1><p className="mt-4 max-w-2xl text-[#9b9b9b]">Set project characteristics from 1 (low) to 5 (high). Versioned Python rules determine every score.</p><div className="mt-8 grid gap-6 lg:grid-cols-2"><section className="rounded-2xl border border-white/10 bg-[#181818] p-6"><h2 className="text-xl font-semibold">Project characteristics</h2><div className="mt-5 space-y-5">{fields.map(([key, label]) => <label key={key} className="block text-sm"><span className="flex justify-between"><span>{label}</span><span className="text-[#d9ff76]">{values[key]}</span></span><input type="range" min="1" max="5" value={values[key]} onChange={(event) => setValues((current) => ({ ...current, [key]: Number(event.target.value) }))} className="mt-2 w-full accent-[#d9ff76]" /></label>)}</div><Button onClick={calculate} disabled={busy} className="mt-6 w-full">{busy ? <SpinnerGap className="animate-spin" /> : <ChartBar />}Calculate scores</Button>{error && <p role="alert" className="mt-4 flex gap-2 text-red-200"><WarningCircle />{error}</p>}</section><section className="rounded-2xl border border-white/10 bg-[#181818] p-6"><h2 className="text-xl font-semibold">Score breakdown</h2>{!result ? <p className="mt-4 text-[#888]">Calculate to compare delivery approaches.</p> : <div className="mt-5"><p className="text-sm uppercase text-[#888]">Recommended</p><p className="mt-2 text-3xl font-semibold capitalize text-[#d9ff76]">{result.recommendation.replace("_", " ")}</p><p className="mt-3 text-sm text-[#aaa]">{result.rationale}</p><div className="mt-6 space-y-3">{Object.entries(result.scores).sort((a, b) => b[1] - a[1]).map(([name, score]) => <div key={name}><div className="flex justify-between text-sm capitalize"><span>{name.replace("_", " ")}</span><span>{score}%</span></div><div className="mt-1 h-2 rounded-full bg-[#111]"><div className="h-full rounded-full bg-[#d9ff76]" style={{ width: `${score}%` }} /></div></div>)}</div><p className="mt-5 text-xs text-[#666]">Scoring model {result.scoring_version}</p></div>}</section></div></div>;
+  const { project } = useOutletContext<ProjectOutletContext>();
+  const [values, setValues] = useState<Record<string, number>>(
+    Object.fromEntries(fields.map(([key]) => [key, 3])),
+  );
+  const [result, setResult] = useState<SDLCRecommendation | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    apiRequest<SDLCRecommendation>(`/projects/${project.id}/sdlc/latest`, {
+      authenticated: true,
+    })
+      .then((latest) => {
+        setResult(latest);
+        setValues(latest.characteristics);
+      })
+      .catch((reason: unknown) => {
+        if (!(reason instanceof ApiError) || reason.status !== 404)
+          setError(
+            reason instanceof Error
+              ? reason.message
+              : "Could not load the recommendation.",
+          );
+      });
+  }, [project.id]);
+  async function calculate() {
+    setBusy(true);
+    setError("");
+    try {
+      setResult(
+        await apiRequest<SDLCRecommendation>(
+          `/projects/${project.id}/sdlc/recommend`,
+          { method: "POST", authenticated: true, body: JSON.stringify(values) },
+        ),
+      );
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Scoring failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div>
+      <p className="text-sm font-semibold text-[#d9ff76]">
+        Deterministic delivery planning
+      </p>
+      <h1 className="mt-3 text-4xl font-semibold">SDLC recommendation</h1>
+      <p className="mt-4 max-w-2xl text-[#9b9b9b]">
+        Set project characteristics from 1 (low) to 5 (high). Versioned Python
+        rules determine every score.
+      </p>
+      <div className="mt-8 grid gap-6 lg:grid-cols-2">
+        <section className="rounded-2xl border border-white/10 bg-[#181818] p-6">
+          <h2 className="text-xl font-semibold">Project characteristics</h2>
+          <div className="mt-5 space-y-5">
+            {fields.map(([key, label]) => (
+              <label key={key} className="block text-sm">
+                <span className="flex justify-between">
+                  <span>{label}</span>
+                  <span className="text-[#d9ff76]">{values[key]}</span>
+                </span>
+                <input
+                  type="range"
+                  min="1"
+                  max="5"
+                  value={values[key]}
+                  onChange={(event) =>
+                    setValues((current) => ({
+                      ...current,
+                      [key]: Number(event.target.value),
+                    }))
+                  }
+                  className="mt-2 w-full accent-[#d9ff76]"
+                />
+              </label>
+            ))}
+          </div>
+          <Button onClick={calculate} disabled={busy} className="mt-6 w-full">
+            {busy ? <SpinnerGap className="animate-spin" /> : <ChartBar />}
+            Calculate scores
+          </Button>
+          {error && (
+            <p role="alert" className="mt-4 flex gap-2 text-red-200">
+              <WarningCircle />
+              {error}
+            </p>
+          )}
+        </section>
+        <section className="rounded-2xl border border-white/10 bg-[#181818] p-6">
+          <h2 className="text-xl font-semibold">Score breakdown</h2>
+          {!result ? (
+            <p className="mt-4 text-[#888]">
+              Calculate to compare delivery approaches.
+            </p>
+          ) : (
+            <div className="mt-5">
+              <p className="text-sm uppercase text-[#888]">Recommended</p>
+              <p className="mt-2 text-3xl font-semibold text-[#d9ff76]">
+                {modelLabels[result.recommendation] ?? result.recommendation}
+              </p>
+              <p className="mt-3 text-sm text-[#aaa]">{result.rationale}</p>
+              <div className="mt-6 space-y-3">
+                {Object.entries(result.scores)
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([name, score]) => (
+                    <div key={name}>
+                      <div className="flex justify-between text-sm">
+                        <span>{modelLabels[name] ?? name}</span>
+                        <span>{score}%</span>
+                      </div>
+                      <div className="mt-1 h-2 rounded-full bg-[#111]">
+                        <div
+                          className="h-full rounded-full bg-[#d9ff76]"
+                          style={{ width: `${score}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+              </div>
+              <p className="mt-5 text-xs text-[#aaa]">
+                Scoring model {result.scoring_version}
+              </p>
+            </div>
+          )}
+        </section>
+      </div>
+    </div>
+  );
 }

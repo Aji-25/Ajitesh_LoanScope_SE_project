@@ -1,4 +1,6 @@
+import re
 from dataclasses import dataclass
+from difflib import SequenceMatcher
 
 
 @dataclass(frozen=True)
@@ -14,7 +16,14 @@ class QualityFinding:
 def analyze_statement(statement: str, acceptance_criteria: list[str]) -> list[QualityFinding]:
     lowered = statement.lower()
     findings: list[QualityFinding] = []
-    for term in ("quickly", "securely", "user friendly", "minimal delay", "appropriate"):
+    for term in (
+        "quickly",
+        "securely",
+        "user friendly",
+        "minimal delay",
+        "appropriate",
+        "high value",
+    ):
         if term in lowered:
             findings.append(
                 QualityFinding(
@@ -51,6 +60,37 @@ def detect_conflicts(statements: list[str]) -> dict[int, list[QualityFinding]]:
                             kind="conflict",
                             message="This requirement may contradict another baseline statement.",
                             question="Which behavior should take precedence?",
+                        )
+                    )
+            normalized_left = re.sub(r"[^a-z0-9 ]", "", left.lower())
+            normalized_right = re.sub(r"[^a-z0-9 ]", "", right.lower())
+            if SequenceMatcher(None, normalized_left, normalized_right).ratio() >= 0.82:
+                for index in (left_index, right_index):
+                    conflicts.setdefault(index, []).append(
+                        QualityFinding(
+                            kind="duplicate",
+                            message=(
+                                "This requirement is substantially similar to another statement."
+                            ),
+                            question="Should these requirements be merged into one baseline item?",
+                        )
+                    )
+            automatic = "automatically" in left.lower() or "automatically" in right.lower()
+            manual = "manual" in left.lower() or "manual" in right.lower()
+            shared_application = "application" in left.lower() and "application" in right.lower()
+            if automatic and manual and shared_application:
+                for index in (left_index, right_index):
+                    conflicts.setdefault(index, []).append(
+                        QualityFinding(
+                            kind="conflict",
+                            message=(
+                                "Automatic decisions may conflict with the manual "
+                                "approval exception."
+                            ),
+                            question=(
+                                "Should the manual approval threshold override "
+                                "automatic processing?"
+                            ),
                         )
                     )
     return conflicts

@@ -1,33 +1,17 @@
+import pytest
+
 from app.schemas.sdlc import ProjectCharacteristics
-from app.services.sdlc import score_sdlc
+from app.services.sdlc import FACTORS, MODEL_PROFILES, SCORING_VERSION, score_sdlc
 
 
-def test_agile_wins_for_volatile_collaborative_frequent_delivery() -> None:
-    result = score_sdlc(
-        ProjectCharacteristics(
-            requirements_volatility=5,
-            compliance_criticality=2,
-            technical_risk=2,
-            customer_collaboration=5,
-            release_frequency=5,
-            team_experience=4,
-        )
-    )
-    assert result.recommendation == "agile"
-
-
-def test_v_model_wins_for_stable_high_assurance_project() -> None:
-    result = score_sdlc(
-        ProjectCharacteristics(
-            requirements_volatility=1,
-            compliance_criticality=5,
-            technical_risk=5,
-            customer_collaboration=2,
-            release_frequency=1,
-            team_experience=4,
-        )
-    )
-    assert result.recommendation == "v_model"
+@pytest.mark.parametrize("model,profile", MODEL_PROFILES.items())
+def test_each_allowed_model_can_win(model: str, profile: tuple[int, ...]) -> None:
+    characteristics = ProjectCharacteristics(**dict(zip(FACTORS, profile, strict=True)))
+    result = score_sdlc(characteristics)
+    assert result.recommendation == model
+    assert result.scores[model] == 100
+    assert set(result.scores) == set(MODEL_PROFILES)
+    assert result.scoring_version == SCORING_VERSION
 
 
 def test_scores_are_repeatable_and_bounded() -> None:
@@ -39,5 +23,6 @@ def test_scores_are_repeatable_and_bounded() -> None:
         release_frequency=2,
         team_experience=4,
     )
-    assert score_sdlc(inputs) == score_sdlc(inputs)
-    assert all(0 <= score <= 100 for score in score_sdlc(inputs).scores.values())
+    first = score_sdlc(inputs)
+    assert first == score_sdlc(inputs)
+    assert all(0 <= score <= 100 for score in first.scores.values())

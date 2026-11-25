@@ -12,6 +12,8 @@ def test_compliance_agent_refuses_unsupported_claims() -> None:
     assert result.applicability == "unknown"
     assert result.evidence_chunk_ids == []
     assert result.confidence == 0.0
+    assert result.gap_status == "insufficient_evidence"
+    assert result.human_review_required is True
 
 
 def test_compliance_agent_cites_retrieved_evidence() -> None:
@@ -34,3 +36,4 @@ def test_compliance_agent_cites_retrieved_evidence() -> None:
     assert result.evidence_chunk_ids == [chunk_id]
     assert result.citations[0]["section"] == "Records"
     assert result.confidence == 0.88
+    assert result.gap_status == "review_required"

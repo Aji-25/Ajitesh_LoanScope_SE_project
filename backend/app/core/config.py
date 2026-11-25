@@ -1,6 +1,7 @@
 from functools import lru_cache
+from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -23,9 +24,25 @@ class Settings(BaseSettings):
     bootstrap_user_email: str | None = None
     bootstrap_user_password: str | None = Field(default=None, min_length=12)
     bootstrap_user_name: str = "Development analyst"
-    llm_mode: str = "mock"
-    llm_model: str = "gpt-4.1-mini"
+    llm_mode: Literal["mock", "openai", "gemini", "ollama", "hybrid"] = "mock"
+    llm_model: str = Field(default="gpt-4.1-mini", min_length=1)
     openai_api_key: str | None = None
+    gemini_api_key: str | None = None
+    gemini_model: str = Field(default="gemini-3.8-flash", min_length=1)
+    ollama_base_url: str = Field(default="http://host.docker.internal:11434", min_length=1)
+    ollama_model: str = Field(default="qwen3:4b", min_length=1)
+
+    @field_validator("bootstrap_user_password", "openai_api_key", "gemini_api_key", mode="before")
+    @classmethod
+    def empty_optional_secret_is_unset(cls, value: object) -> object:
+        return None if value == "" else value
+
+    @field_validator("llm_model", "gemini_model", "ollama_base_url", "ollama_model", mode="before")
+    @classmethod
+    def normalize_provider_setting(cls, value: object) -> object:
+        if isinstance(value, str):
+            return value.strip().rstrip("/")
+        return value
 
     @property
     def allowed_origins(self) -> list[str]:

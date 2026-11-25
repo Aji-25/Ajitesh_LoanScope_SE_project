@@ -36,8 +36,8 @@ async def download_artifact(
     user: CurrentUser,
     session: SessionDependency,
 ) -> Response:
-    artifact = await ArtifactService(session).download(artifact_id, user.id)
-    if artifact is None or artifact.project_id != project_id:
+    artifact = await ArtifactService(session).download(project_id, artifact_id, user.id)
+    if artifact is None:
         raise HTTPException(status_code=404, detail="Artifact not found.")
     return Response(
         content=artifact.html_content,

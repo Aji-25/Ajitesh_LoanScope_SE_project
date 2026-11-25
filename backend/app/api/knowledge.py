@@ -6,7 +6,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 
 from app.api.dependencies import CurrentUser, SessionDependency
 from app.schemas.knowledge import DocumentResponse, RetrievalRequest, RetrievalResponse
-from app.services.knowledge import KnowledgeService
+from app.services.knowledge import DuplicateDocumentError, KnowledgeService
 
 router = APIRouter(prefix="/projects/{project_id}/knowledge", tags=["knowledge"])
 
@@ -25,6 +25,8 @@ async def upload_document(
         result = await KnowledgeService(session).upload(
             project_id, user.id, file, jurisdiction, version, effective_date
         )
+    except DuplicateDocumentError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except (ValueError, UnicodeDecodeError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     if result is None:

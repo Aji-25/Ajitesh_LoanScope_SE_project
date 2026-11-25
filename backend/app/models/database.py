@@ -179,6 +179,32 @@ class Requirement(TimestampMixin, Base):
     version: Mapped[int] = mapped_column(default=1, nullable=False)
 
     project: Mapped[Project] = relationship(back_populates="requirements")
+    versions: Mapped[list[RequirementVersion]] = relationship(
+        back_populates="requirement", cascade="all, delete-orphan"
+    )
+
+
+class RequirementVersion(Base):
+    __tablename__ = "requirement_versions"
+    __table_args__ = (UniqueConstraint("requirement_id", "version"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    requirement_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("requirements.id", ondelete="CASCADE"), index=True
+    )
+    version: Mapped[int] = mapped_column(nullable=False)
+    statement: Mapped[str] = mapped_column(Text, nullable=False)
+    acceptance_criteria: Mapped[list[str]] = mapped_column(JSONB, default=list, nullable=False)
+    quality_findings: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB, default=list, nullable=False
+    )
+    changed_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    change_reason: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    requirement: Mapped[Requirement] = relationship(back_populates="versions")
 
 
 class Approval(TimestampMixin, Base):
@@ -300,6 +326,8 @@ class ComplianceMapping(TimestampMixin, Base):
     citations: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list, nullable=False)
     confidence: Mapped[float] = mapped_column(Float, nullable=False)
     status: Mapped[str] = mapped_column(String(32), default="draft", nullable=False)
+    gap_status: Mapped[str] = mapped_column(String(32), default="review_required", nullable=False)
+    human_review_required: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     project: Mapped[Project] = relationship(back_populates="compliance_mappings")
 

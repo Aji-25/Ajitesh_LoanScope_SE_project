@@ -3,6 +3,7 @@ from typing import Any, Literal, TypedDict
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
+from langgraph.types import interrupt
 
 
 class RequirementWorkflowState(TypedDict):
@@ -11,6 +12,7 @@ class RequirementWorkflowState(TypedDict):
     statements: list[str]
     quality_findings: list[str]
     clarification_questions: list[str]
+    clarification_indices: list[int]
     iteration: int
     max_iterations: int
     status: str
@@ -26,14 +28,17 @@ def quality_node(state: RequirementWorkflowState) -> dict[str, object]:
     vague_terms = ("quickly", "securely", "user friendly", "minimal delay")
     findings: list[str] = []
     questions: list[str] = []
-    for statement in state["statements"]:
+    indices: list[int] = []
+    for index, statement in enumerate(state["statements"]):
         present = [term for term in vague_terms if term in statement.lower()]
         if present:
             findings.append(f"Ambiguous language: {', '.join(present)}")
             questions.append(f"What measurable target should replace {present[0]!r}?")
+            indices.append(index)
     return {
         "quality_findings": findings,
         "clarification_questions": questions,
+        "clarification_indices": indices,
         "status": "clarification_needed" if questions else "validated",
     }
 
@@ -45,7 +50,28 @@ def route_after_quality(state: RequirementWorkflowState) -> Literal["clarify", "
 
 
 def clarification_node(state: RequirementWorkflowState) -> dict[str, object]:
-    return {"status": "awaiting_clarification"}
+    response = interrupt(
+        {
+            "questions": state["clarification_questions"],
+            "question_indices": state["clarification_indices"],
+            "statements": state["statements"],
+            "iteration": state["iteration"],
+            "max_iterations": state["max_iterations"],
+        }
+    )
+    clarifications = response.get("clarifications", [])
+    if not isinstance(clarifications, list) or len(clarifications) != len(state["statements"]):
+        return {
+            "status": "needs_human_review",
+            "error": "A clarification is required for every workflow statement.",
+        }
+    return {
+        "statements": [str(item).strip() for item in clarifications],
+        "clarification_questions": [],
+        "clarification_indices": [],
+        "quality_findings": [],
+        "status": "reviewing",
+    }
 
 
 def finish_node(state: RequirementWorkflowState) -> dict[str, object]:
@@ -64,7 +90,7 @@ def build_requirement_graph(checkpointer: BaseCheckpointSaver[Any] | None = None
     graph.add_conditional_edges(
         "quality", route_after_quality, {"clarify": "clarify", "finish": "finish"}
     )
-    graph.add_edge("clarify", "finish")
+    graph.add_edge("clarify", "normalize")
     graph.add_edge("finish", END)
     return graph.compile(checkpointer=checkpointer or InMemorySaver())
 
@@ -78,6 +104,7 @@ def initial_state(
         statements=statements,
         quality_findings=[],
         clarification_questions=[],
+        clarification_indices=[],
         iteration=0,
         max_iterations=2,
         status="started",

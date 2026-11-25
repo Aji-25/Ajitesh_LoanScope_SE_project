@@ -4,7 +4,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.compliance import ComplianceAgent
-from app.models.database import ComplianceMapping, Project, Requirement
+from app.models.database import AuditEvent, ComplianceMapping, Project, Requirement
 from app.schemas.compliance import (
     ComplianceAgentInput,
     ComplianceMappingResponse,
@@ -53,8 +53,29 @@ class ComplianceService:
                 evidence_chunk_ids=[str(item) for item in assessment.evidence_chunk_ids],
                 citations=assessment.citations,
                 confidence=assessment.confidence,
+                status=(
+                    "review_required" if assessment.evidence_chunk_ids else "insufficient_evidence"
+                ),
+                gap_status=assessment.gap_status,
+                human_review_required=assessment.human_review_required,
             )
             self.session.add(mapping)
+            await self.session.flush()
+            self.session.add(
+                AuditEvent(
+                    project_id=project_id,
+                    actor_type="agent",
+                    agent_name="compliance_agent",
+                    action="Created compliance mapping",
+                    entity_type="compliance_mapping",
+                    entity_id=mapping.id,
+                    event_metadata={
+                        "requirement_id": str(requirement.id),
+                        "evidence_count": len(assessment.evidence_chunk_ids),
+                        "gap_status": assessment.gap_status,
+                    },
+                )
+            )
             mappings.append(mapping)
         await self.session.commit()
         return ComplianceRunResponse(

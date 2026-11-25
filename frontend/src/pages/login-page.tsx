@@ -102,6 +102,15 @@ export function LoginPage() {
               {submitting ? "Signing in" : "Sign in"}
             </Button>
           </form>
+          <p className="mt-6 text-center text-sm text-[#9b9b9b]">
+            New to Clarifi?{" "}
+            <Link
+              className="rounded font-semibold text-[#d9ff76] outline-none hover:text-white focus:ring-2 focus:ring-[#d9ff76]"
+              to="/register"
+            >
+              Create an account
+            </Link>
+          </p>
         </div>
       </section>
     </main>

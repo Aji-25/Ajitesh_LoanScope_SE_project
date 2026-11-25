@@ -34,8 +34,14 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 
   const response = await fetch(`${API_URL}${path}`, { ...options, headers });
   if (!response.ok) {
-    const body = (await response.json().catch(() => null)) as { detail?: string } | null;
-    throw new ApiError(body?.detail ?? "The request could not be completed.", response.status);
+    const body = (await response.json().catch(() => null)) as { detail?: string | { msg?: string }[] } | null;
+    const detail = body?.detail;
+    const message = typeof detail === "string" ? detail : Array.isArray(detail) ? detail.map((item) => item.msg).filter(Boolean).join(" ") : "The request could not be completed.";
+    if (response.status === 401 && options.authenticated) {
+      clearAccessToken();
+      window.dispatchEvent(new Event("clarifi:unauthorized"));
+    }
+    throw new ApiError(message || "The request could not be completed.", response.status);
   }
   return (await response.json()) as T;
 }

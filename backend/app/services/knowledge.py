@@ -3,11 +3,14 @@ import io
 import math
 import re
 import uuid
+import zipfile
 from datetime import datetime
+from pathlib import Path
 
 from docx import Document as DocxDocument
 from fastapi import UploadFile
 from pypdf import PdfReader
+from pypdf.errors import PdfReadError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,6 +22,11 @@ ALLOWED_CONTENT_TYPES = {
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "text/plain",
 }
+MINIMUM_RETRIEVAL_SCORE = 0.1
+
+
+class DuplicateDocumentError(ValueError):
+    pass
 
 
 def clean_text(text: str) -> str:
@@ -45,19 +53,30 @@ def deterministic_embedding(text: str, dimensions: int = 384) -> list[float]:
     for token in re.findall(r"[a-z0-9]+", text.lower()):
         digest = hashlib.sha256(token.encode()).digest()
         index = int.from_bytes(digest[:4], "big") % dimensions
-        vector[index] += -1.0 if digest[4] & 1 else 1.0
+        vector[index] += 1.0
     norm = math.sqrt(sum(value * value for value in vector)) or 1.0
     return [value / norm for value in vector]
 
 
 def parse_content(data: bytes, content_type: str) -> tuple[str, int]:
-    if content_type == "application/pdf":
-        reader = PdfReader(io.BytesIO(data))
-        return "\n".join(page.extract_text() or "" for page in reader.pages), len(reader.pages)
-    if content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-        document = DocxDocument(io.BytesIO(data))
-        return "\n".join(paragraph.text for paragraph in document.paragraphs), 1
-    return data.decode("utf-8"), 1
+    if not data:
+        raise ValueError("The document is empty.")
+    try:
+        if content_type == "application/pdf":
+            if not data.startswith(b"%PDF-"):
+                raise ValueError("The PDF file is corrupt or has an invalid signature.")
+            reader = PdfReader(io.BytesIO(data))
+            return "\n".join(page.extract_text() or "" for page in reader.pages), len(reader.pages)
+        if content_type == (
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        ):
+            if not data.startswith(b"PK"):
+                raise ValueError("The DOCX file is corrupt or has an invalid signature.")
+            document = DocxDocument(io.BytesIO(data))
+            return "\n".join(paragraph.text for paragraph in document.paragraphs), 1
+        return data.decode("utf-8"), 1
+    except (PdfReadError, zipfile.BadZipFile, KeyError) as exc:
+        raise ValueError("The document is corrupt and could not be parsed.") from exc
 
 
 class KnowledgeService:
@@ -81,6 +100,25 @@ class KnowledgeService:
         content_type = file.content_type or "application/octet-stream"
         if content_type not in ALLOWED_CONTENT_TYPES:
             raise ValueError("Only PDF, DOCX, and UTF-8 text files are supported.")
+        filename = Path(file.filename or "document").name
+        expected_suffix = {
+            "application/pdf": ".pdf",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+            "text/plain": ".txt",
+        }[content_type]
+        if Path(filename).suffix.lower() != expected_suffix:
+            raise ValueError(f"The filename must use the {expected_suffix} extension.")
+        duplicate = await self.session.scalar(
+            select(KnowledgeDocument.id).where(
+                KnowledgeDocument.project_id == project_id,
+                KnowledgeDocument.filename == filename,
+                KnowledgeDocument.version == version,
+            )
+        )
+        if duplicate is not None:
+            raise DuplicateDocumentError(
+                "A document with this filename and version is already indexed."
+            )
         data = await file.read()
         if len(data) > 10 * 1024 * 1024:
             raise ValueError("Documents must be 10 MB or smaller.")
@@ -90,7 +128,7 @@ class KnowledgeService:
             raise ValueError("The document does not contain extractable text.")
         document = KnowledgeDocument(
             project_id=project_id,
-            filename=file.filename or "document",
+            filename=filename,
             content_type=content_type,
             version=version,
             jurisdiction=jurisdiction,
@@ -150,6 +188,7 @@ class KnowledgeService:
                 select(DocumentChunk, KnowledgeDocument, distance.label("distance"))
                 .join(KnowledgeDocument)
                 .where(KnowledgeDocument.project_id == project_id)
+                .where(distance <= 1.0 - MINIMUM_RETRIEVAL_SCORE)
                 .order_by(distance)
                 .limit(limit)
             )
