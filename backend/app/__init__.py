@@ -1,1 +1,1 @@
-"""Clarifi backend application."""
+"""LoanScope backend application."""

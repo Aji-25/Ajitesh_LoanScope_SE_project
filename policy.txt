@@ -1,4 +1,4 @@
-Clarifi Test Lending Policy
+LoanScope Test Lending Policy
 Version 1.0
 Jurisdiction: India
 

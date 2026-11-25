@@ -1,11 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
-  <title id="title">Clarifi loan requirements workspace</title>
-  <desc id="desc">Clarifi wordmark with a structured requirements card</desc>
+  <title id="title">LoanScope loan requirements workspace</title>
+  <desc id="desc">LoanScope wordmark with a structured requirements card</desc>
   <rect width="1200" height="630" fill="#131209"/>
   <rect x="72" y="72" width="1056" height="486" rx="40" fill="#181818" stroke="#313131" stroke-width="2"/>
-  <rect x="112" y="112" width="56" height="56" rx="14" fill="#d9ff76"/>
-  <path d="M126 127h28v8h-19v7h16v8h-25v-23Z" fill="#131209"/>
-  <text x="188" y="153" fill="#ffffff" font-family="sans-serif" font-size="36" font-weight="600">Clarifi</text>
+  <g transform="translate(112 112) scale(.875)">
+    <rect width="64" height="64" rx="16" fill="#d9ff76"/>
+    <path d="M15 19h6v20h8v6H15zM49 25H37v4h8a6 6 0 0 1 6 6v4a6 6 0 0 1-6 6H32v-6h13v-4h-8a6 6 0 0 1-6-6v-4a6 6 0 0 1 6-6h12z" fill="#131209"/>
+  </g>
+  <text x="188" y="153" fill="#ffffff" font-family="sans-serif" font-size="36" font-weight="600">LoanScope</text>
   <text x="112" y="280" fill="#ffffff" font-family="sans-serif" font-size="64" font-weight="600">Requirements you can defend.</text>
   <text x="112" y="342" fill="#9b9b9b" font-family="sans-serif" font-size="28">From stakeholder conversation to traceable delivery plan.</text>
   <rect x="112" y="420" width="272" height="64" rx="16" fill="#d9ff76"/>

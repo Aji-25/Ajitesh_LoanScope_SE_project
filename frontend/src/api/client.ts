@@ -1,5 +1,5 @@
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
-const TOKEN_KEY = "clarifi_access_token";
+const TOKEN_KEY = "loanscope_access_token";
 
 export class ApiError extends Error {
   constructor(
@@ -39,7 +39,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     const message = typeof detail === "string" ? detail : Array.isArray(detail) ? detail.map((item) => item.msg).filter(Boolean).join(" ") : "The request could not be completed.";
     if (response.status === 401 && options.authenticated) {
       clearAccessToken();
-      window.dispatchEvent(new Event("clarifi:unauthorized"));
+      window.dispatchEvent(new Event("loanscope:unauthorized"));
     }
     throw new ApiError(message || "The request could not be completed.", response.status);
   }

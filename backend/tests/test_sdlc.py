@@ -1,7 +1,7 @@
 import pytest
 
-from app.schemas.sdlc import ProjectCharacteristics
-from app.services.sdlc import FACTORS, MODEL_PROFILES, SCORING_VERSION, score_sdlc
+from app.schemas.sdlc import ProjectCharacteristics, SDLCSuggestion
+from app.services.sdlc import FACTORS, MODEL_PROFILES, SCORING_VERSION, preview_sdlc, score_sdlc
 
 
 @pytest.mark.parametrize("model,profile", MODEL_PROFILES.items())
@@ -26,3 +26,29 @@ def test_scores_are_repeatable_and_bounded() -> None:
     first = score_sdlc(inputs)
     assert first == score_sdlc(inputs)
     assert all(0 <= score <= 100 for score in first.scores.values())
+
+
+def test_preview_uses_ai_ratings_and_keeps_unsuggested_slider_values() -> None:
+    inputs = ProjectCharacteristics(
+        requirements_volatility=1,
+        compliance_criticality=2,
+        technical_risk=3,
+        customer_collaboration=2,
+        release_frequency=1,
+        team_experience=4,
+    )
+    result = preview_sdlc(
+        SDLCSuggestion(
+            compliance_criticality=5,
+            technical_risk=4,
+            rationale="The requirements involve compliance and technical risk.",
+        ),
+        inputs,
+    )
+    assert result.requirements_volatility is None
+    assert result.characteristics.model_dump() == inputs.model_dump() | {
+        "compliance_criticality": 5,
+        "technical_risk": 4,
+    }
+    assert result.preview == score_sdlc(result.characteristics)
+    assert result.preview.recommendation == "v_shaped"

@@ -1,16 +1,35 @@
-from app.services.security import assess_security
+import pytest
+from pydantic import ValidationError
+
+from app.schemas.security import RiskAssessment, review_headline
 
 
-def test_document_requirement_generates_data_protection_risk() -> None:
-    items = assess_security("Applicants upload bank statements.", ["functional"])
-    assert items[0].category == "data_protection"
-    assert items[0].likelihood * items[0].impact == 15
+@pytest.mark.parametrize(
+    ("title", "expected"),
+    [
+        ("Missing encryption for identity documents", "Verify encryption for identity documents"),
+        ("PDF Limit not enforced", "Verify PDF Limit"),
+        (
+            "Manual underwriting approval is not enforced for high-value loans",
+            "Verify manual underwriting approval for high-value loans",
+        ),
+        ("Add consent timestamp", "Add consent timestamp"),
+    ],
+)
+def test_headline_describes_a_check_without_claiming_control_is_absent(
+    title: str, expected: str
+) -> None:
+    assert review_headline(title) == expected
 
 
-def test_access_requirement_generates_access_control_finding() -> None:
-    items = assess_security("Underwriters access applicant records.", ["security"])
-    assert any(item.category == "access_control" for item in items)
-
-
-def test_unrelated_requirement_does_not_invent_finding() -> None:
-    assert assess_security("The product supports fixed interest rates.", ["functional"]) == []
+def test_review_rejects_out_of_range_ratings() -> None:
+    with pytest.raises(ValidationError):
+        RiskAssessment(
+            title="Consent record",
+            remaining_risk="The consent record may omit the notice version.",
+            next_step="Save the notice version with each consent record.",
+            likelihood_reason="A standard consent form may omit this information.",
+            impact_reason="Reviewers would be unable to verify which notice was accepted.",
+            likelihood=6,
+            impact=5,
+        )

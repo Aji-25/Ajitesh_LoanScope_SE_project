@@ -1,4 +1,4 @@
-import { ArrowRight, ChatCircleDots, CheckCircle, ClipboardText, Users } from "@phosphor-icons/react";
+import { ArrowRight, ChatCircleDots, ClipboardText, Users } from "@phosphor-icons/react";
 import { Link, useOutletContext } from "react-router-dom";
 
 import type { ProjectOutletContext } from "@/components/project-layout";
@@ -9,7 +9,6 @@ export function ProjectOverviewPage() {
   const summaryCards = [
     { icon: Users, value: project.stakeholder_count, label: "Stakeholders" },
     { icon: ClipboardText, value: project.requirement_count, label: "Requirements" },
-    { icon: CheckCircle, value: project.pending_approval_count, label: "Pending approvals" },
   ];
 
   return (
@@ -27,7 +26,7 @@ export function ProjectOverviewPage() {
         </Button>
       </div>
 
-      <section className="mt-10 grid gap-4 sm:grid-cols-3" aria-label="Project summary">
+      <section className="mt-10 grid gap-4 sm:grid-cols-2" aria-label="Project summary">
         {summaryCards.map(({ icon: Icon, value, label }) => (
           <article className="rounded-2xl border border-white/10 bg-[#181818] p-6" key={label}>
             <Icon aria-hidden="true" className="text-[#d9ff76]" size={22} />

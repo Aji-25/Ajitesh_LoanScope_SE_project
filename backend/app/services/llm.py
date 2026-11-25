@@ -175,7 +175,7 @@ class OllamaLLMService(LLMService):
         model: str,
         *,
         client: AsyncHTTPClient | None = None,
-        timeout_seconds: float = 60.0,
+        timeout_seconds: float = 120.0,
     ) -> None:
         self.endpoint = f"{base_url.rstrip('/')}/api/chat"
         self.model = model
@@ -371,3 +371,12 @@ def get_llm_service(settings: Settings | None = None) -> LLMService:
             OllamaLLMService(configured.ollama_base_url, configured.ollama_model),
         )
     raise LLMServiceError("Unsupported LLM mode.")
+
+
+def get_live_llm_service() -> LLMService:
+    settings = get_settings()
+    if settings.llm_mode == "mock":
+        raise LLMServiceError(
+            "This feature needs a live AI provider. Configure Ollama or another provider."
+        )
+    return get_llm_service(settings)

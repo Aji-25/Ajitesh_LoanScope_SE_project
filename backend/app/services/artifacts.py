@@ -1,4 +1,3 @@
-import html
 import uuid
 from typing import Any, cast
 
@@ -9,28 +8,17 @@ from app.models.database import (
     AuditEvent,
     ComplianceMapping,
     GeneratedArtifact,
+    KnowledgeDocument,
     Project,
     Requirement,
     Risk,
     SDLCRecommendation,
+    Stakeholder,
 )
 from app.schemas.artifact import ArtifactList, ArtifactResponse
+from app.services.requirement_quality import review_requirements
 from app.services.sdlc import SCORING_VERSION
-
-
-def render_html(title: str, sections: list[dict[str, Any]]) -> str:
-    body = "".join(
-        f"<section><h2>{html.escape(str(section['heading']))}</h2>"
-        f"<pre>{html.escape(str(section['content']))}</pre></section>"
-        for section in sections
-    )
-    return (
-        "<!doctype html><html><head><meta charset='utf-8'>"
-        f"<title>{html.escape(title)}</title><style>body{{font-family:system-ui;"
-        "max-width:900px;margin:40px auto;padding:0 24px;line-height:1.5}}"
-        f"pre{{white-space:pre-wrap}}</style></head><body><h1>{html.escape(title)}</h1>"
-        f"{body}</body></html>"
-    )
+from app.services.srs import build_srs_sections
 
 
 def build_artifact_payloads(
@@ -39,6 +27,9 @@ def build_artifact_payloads(
     risks: list[Risk],
     compliance: list[ComplianceMapping],
     sdlc: SDLCRecommendation | None,
+    *,
+    documents: list[KnowledgeDocument] | None = None,
+    stakeholders: list[Stakeholder] | None = None,
 ) -> list[tuple[str, str, list[dict[str, Any]]]]:
     rows = [
         {
@@ -46,7 +37,6 @@ def build_artifact_payloads(
             "statement": item.statement,
             "source": item.source_stakeholder,
             "acceptance_criteria": item.acceptance_criteria,
-            "status": item.approval_status,
         }
         for item in requirements
     ]
@@ -63,14 +53,21 @@ def build_artifact_payloads(
         for item in requirements
     ]
     requirement_codes = {item.id: item.requirement_code for item in requirements}
+    issues = [
+        {
+            "requirement_id": item.requirement_code,
+            "findings": [finding.as_dict() for finding in findings],
+        }
+        for item, findings in zip(requirements, review_requirements(requirements), strict=True)
+        if findings
+    ]
     return [
         (
             "srs",
             "Software Requirements Specification",
-            [
-                {"heading": "Project scope", "content": project.summary},
-                {"heading": "Requirements", "content": rows},
-            ],
+            build_srs_sections(
+                project, requirements, documents or [], stakeholders or [], issues, traceability
+            ),
         ),
         (
             "user_stories",
@@ -168,16 +165,7 @@ def build_artifact_payloads(
         (
             "open_issues",
             "Open Issues",
-            [
-                {
-                    "heading": "Issues",
-                    "content": [
-                        {"requirement_id": item.requirement_code, "findings": item.quality_findings}
-                        for item in requirements
-                        if item.quality_findings
-                    ],
-                }
-            ],
+            [{"heading": "Issues", "content": issues}],
         ),
     ]
 
@@ -195,14 +183,17 @@ class ArtifactService:
         requirements = list(
             await self.session.scalars(
                 select(Requirement)
-                .where(Requirement.project_id == project_id)
+                .where(Requirement.active_in(project_id))
                 .order_by(Requirement.requirement_code)
             )
         )
-        risks = list(await self.session.scalars(select(Risk).where(Risk.project_id == project_id)))
+        risks = list(await self.session.scalars(select(Risk).where(Risk.active_in(project_id))))
         compliance = list(
             await self.session.scalars(
-                select(ComplianceMapping).where(ComplianceMapping.project_id == project_id)
+                select(ComplianceMapping).where(
+                    ComplianceMapping.project_id == project_id,
+                    ComplianceMapping.requirement_id.in_(Requirement.active_ids(project_id)),
+                )
             )
         )
         sdlc = await self.session.scalar(
@@ -213,6 +204,20 @@ class ArtifactService:
             )
             .order_by(SDLCRecommendation.created_at.desc())
             .limit(1)
+        )
+        documents = list(
+            await self.session.scalars(
+                select(KnowledgeDocument)
+                .where(KnowledgeDocument.project_id == project_id)
+                .order_by(KnowledgeDocument.filename, KnowledgeDocument.version)
+            )
+        )
+        stakeholders = list(
+            await self.session.scalars(
+                select(Stakeholder)
+                .where(Stakeholder.project_id == project_id)
+                .order_by(Stakeholder.role)
+            )
         )
         version_rows = (
             await self.session.execute(
@@ -225,14 +230,20 @@ class ArtifactService:
         artifacts: list[GeneratedArtifact] = []
         source_ids = [item.requirement_code for item in requirements]
         for artifact_type, title, sections in build_artifact_payloads(
-            project, requirements, risks, compliance, sdlc
+            project,
+            requirements,
+            risks,
+            compliance,
+            sdlc,
+            documents=documents,
+            stakeholders=stakeholders,
         ):
             artifact = GeneratedArtifact(
                 project_id=project_id,
                 artifact_type=artifact_type,
                 title=title,
                 content={"sections": sections},
-                html_content=render_html(title, sections),
+                html_content="",  # Legacy non-null column. Downloads use the saved sections.
                 source_requirement_ids=source_ids,
                 version=next_versions.get(artifact_type, 1),
             )

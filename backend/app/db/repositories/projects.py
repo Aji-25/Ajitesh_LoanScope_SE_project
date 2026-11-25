@@ -4,12 +4,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.database import Project
+from app.models.database import Project, Requirement
 
 PROJECT_LOAD_OPTIONS = (
     selectinload(Project.stakeholders),
-    selectinload(Project.requirements),
-    selectinload(Project.approvals),
+    selectinload(Project.requirements.and_(Requirement.deleted_at.is_(None))),
 )
 
 

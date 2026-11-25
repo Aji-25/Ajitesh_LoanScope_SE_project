@@ -2,7 +2,12 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class EvaluationReview(BaseModel):
+    summary: str = Field(min_length=3, max_length=400)
+    next_steps: list[str] = Field(max_length=3)
 
 
 class AuditEventResponse(BaseModel):
@@ -24,6 +29,7 @@ class EvaluationResponse(BaseModel):
     metrics: dict[str, float]
     passed: bool
     summary: str
+    review_actions: list[str] | None
     created_at: datetime
 
 

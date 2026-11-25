@@ -20,14 +20,12 @@ export function Navigation() {
         className="fixed left-1/2 top-0 z-40 mt-6 flex w-[calc(100%-2rem)] max-w-4xl -translate-x-1/2 items-center justify-between rounded-full border border-white/10 bg-[#181818]/90 px-4 py-2 shadow-2xl shadow-black/30 backdrop-blur-3xl sm:px-6"
       >
         <Link
-          aria-label="Clarifi home"
+          aria-label="LoanScope home"
           className="flex items-center gap-2 rounded-full text-base font-semibold"
           to="/"
         >
-          <span className="grid size-8 place-items-center rounded-full bg-[#d9ff76] text-sm font-bold text-[#131209]">
-            C
-          </span>
-          Clarifi
+          <img src="/favicon.svg" alt="" className="size-8 shrink-0" />
+          LoanScope
         </Link>
         <div className="hidden items-center gap-1 md:flex">
           {links.map((link) => (

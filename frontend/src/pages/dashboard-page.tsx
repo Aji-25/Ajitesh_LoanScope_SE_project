@@ -87,11 +87,10 @@ export function DashboardPage() {
                   <ArrowRight className="text-[#6f6f6f] transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:translate-x-1 group-hover:text-white" size={20} />
                 </div>
                 <p className="mt-4 line-clamp-3 text-pretty text-sm text-[#9b9b9b]">{project.summary}</p>
-                <dl className="mt-8 grid grid-cols-3 gap-3">
+                <dl className="mt-8 grid grid-cols-2 gap-3">
                   {[
                     [project.stakeholder_count, "Stakeholders"],
                     [project.requirement_count, "Requirements"],
-                    [project.pending_approval_count, "Approvals"],
                   ].map(([value, label]) => (
                     <div className="rounded-lg bg-[#272727] p-3" key={label}>
                       <dd className="text-lg font-semibold">{value}</dd>

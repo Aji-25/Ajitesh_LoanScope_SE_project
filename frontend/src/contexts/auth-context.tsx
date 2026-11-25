@@ -29,7 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(null);
           return;
         }
-        setSessionError("Clarifi cannot reach the API. Check the service and try again.");
+        setSessionError("LoanScope cannot reach the API. Check the service and try again.");
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -41,8 +41,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const handleUnauthorized = () => setUser(null);
-    window.addEventListener("clarifi:unauthorized", handleUnauthorized);
-    return () => window.removeEventListener("clarifi:unauthorized", handleUnauthorized);
+    window.addEventListener("loanscope:unauthorized", handleUnauthorized);
+    return () => window.removeEventListener("loanscope:unauthorized", handleUnauthorized);
   }, []);
 
   const value = useMemo<AuthContextValue>(

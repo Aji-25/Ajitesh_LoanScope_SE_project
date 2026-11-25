@@ -42,7 +42,6 @@ class ProjectResponse(BaseModel):
     updated_at: datetime
     stakeholder_count: int = 0
     requirement_count: int = 0
-    pending_approval_count: int = 0
 
 
 class ProjectListResponse(BaseModel):

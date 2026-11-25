@@ -60,7 +60,9 @@ export function InterviewPage() {
             {result.extraction.candidates.map((candidate, index) => <article key={`${candidate.statement}-${index}`} className="rounded-xl border border-white/10 bg-[#111] p-5">
               <div className="flex flex-wrap gap-2">{candidate.categories.map((category) => <span key={category} className="rounded-full bg-[#d9ff76]/10 px-2.5 py-1 text-xs text-[#d9ff76]">{category}</span>)}</div>
               <p className="mt-4 font-medium">{candidate.statement}</p>
-              <p className="mt-3 text-sm text-[#9b9b9b]">Confidence {Math.round(candidate.confidence * 100)}% · Source: {candidate.source}</p>
+              <p className="mt-3 text-sm text-[#9b9b9b]">
+                Source: {result.persisted_requirements[index]?.source_stakeholder ?? candidate.source}
+              </p>
               {candidate.clarification_needed && <p className="mt-3 rounded-lg bg-amber-300/10 p-3 text-sm text-amber-200">Clarification needed: {candidate.uncertainty_reason}</p>}
             </article>)}
           </div>}

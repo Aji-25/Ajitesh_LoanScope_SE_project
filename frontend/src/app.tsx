@@ -3,7 +3,6 @@ import { Navigate, BrowserRouter, Route, Routes } from "react-router-dom";
 import { ProjectLayout } from "@/components/project-layout";
 import { ProtectedRoute } from "@/components/protected-route";
 import { AuthProvider } from "@/contexts/auth-context";
-import { ApprovalsPage } from "@/pages/approvals-page";
 import { AuditPage } from "@/pages/audit-page";
 import { CreateProjectPage } from "@/pages/create-project-page";
 import { DashboardPage } from "@/pages/dashboard-page";
@@ -39,10 +38,9 @@ export function App() {
               <Route element={<InterviewPage />} path="interview" />
               <Route element={<RequirementsPage />} path="requirements" />
               <Route element={<KnowledgePage />} path="compliance" />
-              <Route element={<SecurityRiskPage view="security" />} path="security" />
-              <Route element={<SecurityRiskPage view="risks" />} path="risks" />
+              <Route element={<SecurityRiskPage />} path="security" />
+              <Route element={<Navigate replace to="../security" />} path="risks" />
               <Route element={<SDLCPage />} path="sdlc" />
-              <Route element={<ApprovalsPage />} path="approvals" />
               <Route element={<DocumentsPage />} path="documents" />
               <Route element={<AuditPage />} path="audit" />
             </Route>

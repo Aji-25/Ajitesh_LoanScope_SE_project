@@ -17,10 +17,8 @@ export function WorkspaceHeader() {
     <header className="border-b border-white/10 bg-[#181818] px-4 py-3 sm:px-6">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
         <Link className="flex items-center gap-2 rounded-full font-semibold" to="/dashboard">
-          <span className="grid size-8 place-items-center rounded-full bg-[#d9ff76] text-sm font-bold text-[#131209]">
-            C
-          </span>
-          Clarifi
+          <img src="/favicon.svg" alt="" className="size-8 shrink-0" />
+          LoanScope
         </Link>
         <div className="flex items-center gap-3">
           <div className="hidden text-right sm:block">

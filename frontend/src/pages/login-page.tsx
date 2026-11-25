@@ -45,8 +45,8 @@ export function LoginPage() {
     <main className="grid min-h-screen bg-[#131209] lg:grid-cols-2">
       <section className="hidden border-r border-white/10 bg-[#181818] p-12 lg:flex lg:flex-col lg:justify-between">
         <Link className="flex items-center gap-2 rounded-full font-semibold" to="/">
-          <span className="grid size-8 place-items-center rounded-full bg-[#d9ff76] text-sm font-bold text-[#131209]">C</span>
-          Clarifi
+          <img src="/favicon.svg" alt="" className="size-8 shrink-0" />
+          LoanScope
         </Link>
         <div className="max-w-xl">
           <p className="text-sm font-semibold text-[#d9ff76]">Controlled discovery</p>
@@ -54,7 +54,7 @@ export function LoginPage() {
             Keep every lending requirement connected to its source.
           </h1>
           <p className="mt-6 max-w-lg text-pretty text-lg text-[#9b9b9b]">
-            Review project context, stakeholder input, approvals, and delivery decisions in one traceable workspace.
+            Review project context, stakeholder input and delivery decisions in one traceable workspace.
           </p>
         </div>
         <p className="text-sm text-[#6f6f6f]">Requirement engineering for personal loan software projects</p>
@@ -103,7 +103,7 @@ export function LoginPage() {
             </Button>
           </form>
           <p className="mt-6 text-center text-sm text-[#9b9b9b]">
-            New to Clarifi?{" "}
+            New to LoanScope?{" "}
             <Link
               className="rounded font-semibold text-[#d9ff76] outline-none hover:text-white focus:ring-2 focus:ring-[#d9ff76]"
               to="/register"

@@ -21,7 +21,6 @@ def to_project_response(project: Project) -> ProjectResponse:
         updated_at=project.updated_at,
         stakeholder_count=len(project.stakeholders),
         requirement_count=len(project.requirements),
-        pending_approval_count=sum(approval.status == "pending" for approval in project.approvals),
     )
 
 

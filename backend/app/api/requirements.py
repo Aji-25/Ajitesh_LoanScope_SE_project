@@ -72,3 +72,16 @@ async def clarify_requirement(
     if result is None:
         raise HTTPException(status_code=404, detail="Requirement not found.")
     return result
+
+
+@router.delete("/requirements/{requirement_id}", response_model=RequirementListResponse)
+async def delete_requirement(
+    project_id: uuid.UUID,
+    requirement_id: uuid.UUID,
+    user: CurrentUser,
+    session: SessionDependency,
+) -> RequirementListResponse:
+    result = await RequirementService(session).delete(project_id, requirement_id, user.id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Requirement not found.")
+    return result

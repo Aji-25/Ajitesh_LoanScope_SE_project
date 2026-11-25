@@ -13,7 +13,7 @@ class Settings(BaseSettings):
         case_sensitive=False,
     )
 
-    app_name: str = "Clarifi API"
+    app_name: str = "LoanScope API"
     app_version: str = "0.1.0"
     environment: str = "development"
     database_url: str = Field(min_length=1)
@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     bootstrap_user_email: str | None = None
     bootstrap_user_password: str | None = Field(default=None, min_length=12)
     bootstrap_user_name: str = "Development analyst"
-    llm_mode: Literal["mock", "openai", "gemini", "ollama", "hybrid"] = "mock"
+    llm_mode: Literal["mock", "openai", "gemini", "ollama", "hybrid"] = "ollama"
     llm_model: str = Field(default="gpt-4.1-mini", min_length=1)
     openai_api_key: str | None = None
     gemini_api_key: str | None = None

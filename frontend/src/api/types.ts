@@ -23,7 +23,6 @@ export type Project = {
   updated_at: string;
   stakeholder_count: number;
   requirement_count: number;
-  pending_approval_count: number;
 };
 
 export type ProjectList = {
@@ -54,7 +53,6 @@ export type Requirement = {
   assumptions: string[];
   acceptance_criteria: string[];
   confidence: number;
-  approval_status: string;
   quality_findings: { kind: string; message: string; question: string }[];
   clarification_status: string;
   version: number;
@@ -79,15 +77,36 @@ export type RequirementExtraction = {
 };
 
 export type RequirementList = { items: Requirement[]; total: number };
-export type RequirementWorkflow = { id: string; thread_id: string; status: string; current_node: string; state: { statements?: string[]; clarification_questions?: string[]; clarification_indices?: number[]; iteration?: number; max_iterations?: number; error?: string | null } };
 
 export type KnowledgeDocument = { id: string; filename: string; content_type: string; version: string; jurisdiction: string; effective_date: string | null; status: string; page_count: number; created_at: string };
 export type EvidenceChunk = { chunk_id: string; document_id: string; filename: string; content: string; page_number: number | null; section: string | null; version: string; jurisdiction: string; effective_date: string | null; score: number };
-export type ComplianceMapping = { id: string; requirement_id: string; obligation: string; applicability: string; rationale: string; evidence_chunk_ids: string[]; citations: { filename: string; section: string | null; page: number | null; version: string; jurisdiction: string }[]; confidence: number; status: string; gap_status: string; human_review_required: boolean; created_at: string };
+export type CompliancePassage = { id: string; filename: string; section: string | null; version: string; content: string };
+export type ComplianceMapping = {
+  id: string;
+  requirement_code: string;
+  requirement_statement: string;
+  needs_refresh: boolean;
+  ai_reviewed: boolean | null;
+  rationale: string;
+  status: string;
+  confidence: number;
+  passages: CompliancePassage[];
+};
 export type SecurityFinding = { id: string; requirement_id: string; category: string; title: string; description: string; severity: string; recommendation: string; status: string; created_at: string };
-export type Risk = { id: string; requirement_id: string | null; risk_code: string; category: string; description: string; likelihood: number; impact: number; score: number; mitigation: string; owner_role: string; status: string; created_at: string };
-export type Approval = { id: string; entity_type: string; entity_id: string | null; title: string; assigned_role: string; status: string; decision_comment: string | null; workflow_thread_id: string | null; request_payload: Record<string, unknown>; decision_payload: Record<string, unknown>; created_at: string; decided_at: string | null };
-export type SDLCRecommendation = { id: string; characteristics: Record<string, number>; scores: Record<string, number>; recommendation: string; rationale: string; scoring_version: string; approval_status: string; created_at: string };
+export type Risk = { id: string; requirement_id: string | null; risk_code: string; category: string; description: string; likelihood: number; impact: number; score: number; mitigation: string; existing_control: string | null; rating_reason: string | null; owner_role: string; status: string; created_at: string };
+export type SDLCRecommendation = { id: string; characteristics: Record<string, number>; scores: Record<string, number>; recommendation: string; rationale: string; scoring_version: string; created_at: string };
+export type SDLCSuggestion = {
+  requirements_volatility: number | null;
+  compliance_criticality: number | null;
+  technical_risk: number | null;
+  customer_collaboration: number | null;
+  release_frequency: number | null;
+  team_experience: number | null;
+  rationale: string;
+  assumptions: string[];
+  characteristics: Record<string, number>;
+  preview: { recommendation: string; scores: Record<string, number>; scoring_version: string };
+};
 export type Artifact = { id: string; artifact_type: string; title: string; version: number; content: Record<string, unknown>; source_requirement_ids: string[]; created_at: string };
-export type Evaluation = { id: string; metrics: Record<string, number>; passed: boolean; summary: string; created_at: string };
+export type Evaluation = { id: string; metrics: Record<string, number>; passed: boolean; summary: string; review_actions: string[] | null; created_at: string };
 export type AuditEvent = { id: string; actor_type: string; actor_id: string | null; agent_name: string | null; action: string; entity_type: string; entity_id: string | null; event_metadata: Record<string, unknown>; created_at: string };

@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class RequirementCandidate(BaseModel):
@@ -41,7 +41,6 @@ class RequirementResponse(BaseModel):
     assumptions: list[str]
     acceptance_criteria: list[str]
     confidence: float
-    approval_status: str
     quality_findings: list[dict[str, str]]
     clarification_status: str
     version: int
@@ -66,5 +65,15 @@ class RequirementListResponse(BaseModel):
 
 class RequirementClarificationInput(BaseModel):
     statement: str = Field(min_length=10, max_length=5000)
-    acceptance_criteria: list[str] = Field(min_length=1, max_length=20)
-    reason: str = Field(default="Stakeholder clarification", min_length=3, max_length=255)
+    acceptance_criteria: list[str] | None = Field(default=None, max_length=20)
+    reason: str = Field(default="Requirement edited", min_length=3, max_length=255)
+
+    @field_validator("statement", mode="before")
+    @classmethod
+    def strip_statement(cls, value: object) -> object:
+        return value.strip() if isinstance(value, str) else value
+
+    @field_validator("acceptance_criteria")
+    @classmethod
+    def strip_criteria(cls, values: list[str] | None) -> list[str] | None:
+        return [value.strip() for value in values if value.strip()] if values is not None else None

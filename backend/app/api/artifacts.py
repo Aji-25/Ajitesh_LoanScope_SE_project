@@ -1,9 +1,11 @@
 import uuid
 
 from fastapi import APIRouter, HTTPException, Response
+from starlette.concurrency import run_in_threadpool
 
 from app.api.dependencies import CurrentUser, SessionDependency
 from app.schemas.artifact import ArtifactList
+from app.services.artifact_pdf import render_artifact_pdf
 from app.services.artifacts import ArtifactService
 
 router = APIRouter(prefix="/projects/{project_id}/artifacts", tags=["artifacts"])
@@ -39,8 +41,11 @@ async def download_artifact(
     artifact = await ArtifactService(session).download(project_id, artifact_id, user.id)
     if artifact is None:
         raise HTTPException(status_code=404, detail="Artifact not found.")
+    pdf = await run_in_threadpool(
+        render_artifact_pdf, artifact.title, artifact.version, artifact.content["sections"]
+    )
     return Response(
-        content=artifact.html_content,
-        media_type="text/html",
-        headers={"Content-Disposition": f'attachment; filename="{artifact.artifact_type}.html"'},
+        content=pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{artifact.artifact_type}.pdf"'},
     )

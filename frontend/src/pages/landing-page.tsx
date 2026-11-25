@@ -40,9 +40,9 @@ const benefits = [
 
 const faqs = [
   {
-    question: "Is Clarifi a loan decisioning system?",
+    question: "Is LoanScope a loan decisioning system?",
     answer:
-      "No. Clarifi supports requirement engineering for personal loan software projects. It does not approve borrowers, access live credit data, or move money.",
+      "No. LoanScope supports requirement engineering for personal loan software projects. It does not approve borrowers, access live credit data, or move money.",
   },
   {
     question: "How are compliance findings supported?",
@@ -93,7 +93,7 @@ export function LandingPage() {
               Turn lending conversations into requirements your team can defend.
             </h1>
             <p className="mt-6 max-w-[680px] text-pretty text-lg text-[#b6b6b6] sm:text-xl">
-              Clarifi guides discovery, preserves source evidence, and turns approved requirements into an explainable delivery plan.
+              LoanScope guides discovery, preserves source evidence, and turns reviewed requirements into an explainable delivery plan.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Button asChild>
@@ -107,7 +107,7 @@ export function LandingPage() {
             </div>
             <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 text-sm text-[#9b9b9b]">
               {[
-                "Human approval built in",
+                "Versioned requirements",
                 "Traceable source evidence",
                 "Deterministic SDLC scoring",
               ].map((item) => (
@@ -154,7 +154,7 @@ export function LandingPage() {
                     {[
                       ["24", "Requirements"],
                       ["3", "Open questions"],
-                      ["2", "Approvals"],
+                      ["5", "Policy sources"],
                     ].map(([value, label]) => (
                       <div className="rounded-xl bg-[#272727] p-3" key={label}>
                         <p className="text-lg font-semibold">{value}</p>
@@ -259,7 +259,7 @@ export function LandingPage() {
               Build a requirement baseline your whole delivery team can inspect.
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-pretty text-base text-[#3c421e]">
-              Start with a project brief. Clarifi will guide the rest of the discovery process as each workflow phase becomes available.
+              Start with a project brief. LoanScope will guide the rest of the discovery process as each workflow phase becomes available.
             </p>
             <Button asChild className="mt-8 bg-[#131209] text-white hover:bg-[#272727]">
               <Link to="/projects/new">Start a project</Link>
@@ -270,7 +270,7 @@ export function LandingPage() {
 
       <footer className="border-t border-white/10 px-6 py-8 lg:px-8">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 text-sm text-[#9b9b9b] sm:flex-row sm:items-center sm:justify-between">
-          <p>Clarifi supports requirement engineering for personal loan software projects.</p>
+          <p>LoanScope supports requirement engineering for personal loan software projects.</p>
           <nav aria-label="Legal navigation" className="flex gap-4">
             <Link className="rounded-md hover:text-white" to="/privacy">Privacy</Link>
             <Link className="rounded-md hover:text-white" to="/terms">Terms</Link>

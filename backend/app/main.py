@@ -1,7 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.approvals import router as approvals_router
 from app.api.artifacts import router as artifacts_router
 from app.api.auth import router as auth_router
 from app.api.compliance import router as compliance_router
@@ -33,7 +32,6 @@ app.add_middleware(
 app.include_router(health_router)
 app.include_router(knowledge_router)
 app.include_router(auth_router)
-app.include_router(approvals_router)
 app.include_router(artifacts_router)
 app.include_router(compliance_router)
 app.include_router(evaluation_router)

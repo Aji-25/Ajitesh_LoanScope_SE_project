@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException
 from app.api.dependencies import CurrentUser, SessionDependency
 from app.schemas.evaluation import AuditEvaluationResponse, EvaluationResponse
 from app.services.evaluation import EvaluationService
+from app.services.llm import LLMServiceError
 
 router = APIRouter(prefix="/projects/{project_id}", tags=["audit", "evaluation"])
 
@@ -23,7 +24,10 @@ async def audit_dashboard(
 async def run_evaluation(
     project_id: uuid.UUID, user: CurrentUser, session: SessionDependency
 ) -> EvaluationResponse:
-    result = await EvaluationService(session).run(project_id, user.id)
+    try:
+        result = await EvaluationService(session).run(project_id, user.id)
+    except LLMServiceError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     if result is None:
         raise HTTPException(status_code=404, detail="Project not found.")
     return result

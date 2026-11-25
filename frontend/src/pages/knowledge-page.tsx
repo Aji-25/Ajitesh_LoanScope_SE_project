@@ -10,17 +10,33 @@ import { useOutletContext } from "react-router-dom";
 import { apiRequest } from "@/api/client";
 import type {
   ComplianceMapping,
+  CompliancePassage,
   EvidenceChunk,
   KnowledgeDocument,
 } from "@/api/types";
 import type { ProjectOutletContext } from "@/components/project-layout";
 import { Button } from "@/components/ui/button";
 
+function PolicyPassage({ passage, showQuote = true }: { passage: CompliancePassage; showQuote?: boolean }) {
+  return (
+    <figure className="rounded-lg border border-white/10 bg-[#181818] p-3">
+      <figcaption className="text-xs font-medium text-[#d9ff76]">
+        {passage.filename} · v{passage.version}{passage.section && ` · ${passage.section}`}
+      </figcaption>
+      {showQuote && <blockquote className="mt-2 break-words text-sm text-[#d1d1d1]">{passage.content}</blockquote>}
+    </figure>
+  );
+}
+
+type PolicyAnswer = { answer: string | null; answer_source: EvidenceChunk | null; items: EvidenceChunk[] };
+
 export function KnowledgePage() {
   const { project } = useOutletContext<ProjectOutletContext>();
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
-  const [evidence, setEvidence] = useState<EvidenceChunk[]>([]);
+  const [policyAnswer, setPolicyAnswer] = useState<PolicyAnswer | null>(null);
   const [query, setQuery] = useState("");
+  const [sourceKind, setSourceKind] = useState<"file" | "text">("file");
+  const [savedSource, setSavedSource] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [mappings, setMappings] = useState<ComplianceMapping[]>([]);
@@ -47,17 +63,27 @@ export function KnowledgePage() {
     event.preventDefault();
     setBusy(true);
     setError("");
+    setSavedSource("");
     const formElement = event.currentTarget;
     const form = new FormData(formElement);
     try {
+      if (sourceKind === "text") {
+        const title = String(form.get("title") ?? "").trim().replace(/\.txt$/i, "");
+        const text = String(form.get("text") ?? "").trim();
+        if (!title || !text) throw new Error("Enter a source title and paste the policy text.");
+        form.delete("title");
+        form.delete("text");
+        form.set("file", new Blob([text], { type: "text/plain" }), `${title}.txt`);
+      }
       const document = await apiRequest<KnowledgeDocument>(
         `/projects/${project.id}/knowledge/documents`,
         { method: "POST", authenticated: true, body: form },
       );
       setDocuments((items) => [document, ...items]);
+      setSavedSource(document.filename);
       formElement.reset();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Upload failed.");
+      setError(reason instanceof Error ? reason.message : "Could not add evidence.");
     } finally {
       setBusy(false);
     }
@@ -67,8 +93,9 @@ export function KnowledgePage() {
     event.preventDefault();
     setBusy(true);
     setError("");
+    setPolicyAnswer(null);
     try {
-      const result = await apiRequest<{ items: EvidenceChunk[] }>(
+      const result = await apiRequest<PolicyAnswer>(
         `/projects/${project.id}/knowledge/retrieve`,
         {
           method: "POST",
@@ -76,7 +103,7 @@ export function KnowledgePage() {
           body: JSON.stringify({ query, limit: 5 }),
         },
       );
-      setEvidence(result.items);
+      setPolicyAnswer(result);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Retrieval failed.");
     } finally {
@@ -107,10 +134,9 @@ export function KnowledgePage() {
   return (
     <div>
       <p className="text-sm font-semibold text-[#d9ff76]">Evidence mapping</p>
-      <h1 className="mt-3 text-4xl font-semibold">Knowledge base</h1>
+      <h1 className="mt-3 text-4xl font-semibold">Compliance</h1>
       <p className="mt-4 max-w-2xl text-[#9b9b9b]">
-        Index regulatory guidance and internal policy with source metadata, then
-        test retrieval independently.
+        Add a policy source and look up passages that relate to your requirements.
       </p>
       {error && (
         <p
@@ -126,18 +152,38 @@ export function KnowledgePage() {
           onSubmit={upload}
           className="rounded-2xl border border-white/10 bg-[#181818] p-6"
         >
-          <h2 className="text-xl font-semibold">Upload evidence</h2>
-          <label htmlFor="evidence-file" className="mt-5 block text-sm font-medium">
-            Evidence document
-          </label>
-          <input
-            id="evidence-file"
-            required
-            name="file"
-            type="file"
-            accept=".pdf,.docx,.txt"
-            className="mt-2 block w-full rounded-lg border border-white/10 bg-[#111] p-3 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-[#d9ff76] file:px-3 file:py-2 file:font-semibold"
-          />
+          <h2 className="text-xl font-semibold">Add evidence</h2>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button type="button" size="small" variant="secondary" aria-pressed={sourceKind === "file"} disabled={busy} onClick={() => setSourceKind("file")}>
+              Upload a file
+            </Button>
+            <Button type="button" size="small" variant="secondary" aria-pressed={sourceKind === "text"} disabled={busy} onClick={() => setSourceKind("text")}>
+              Paste text
+            </Button>
+          </div>
+          {sourceKind === "file" ? (
+            <label className="mt-5 block text-sm font-medium">
+              Evidence document
+              <input
+                required
+                name="file"
+                type="file"
+                accept=".pdf,.docx,.txt"
+                className="mt-2 block w-full rounded-lg border border-white/10 bg-[#111] p-3 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-[#d9ff76] file:px-3 file:py-2 file:font-semibold"
+              />
+            </label>
+          ) : (
+            <>
+              <label className="mt-5 block text-sm font-medium">
+                Source title
+                <input name="title" required maxLength={160} placeholder="Loan intake policy" className="mt-2 block w-full rounded-lg border border-white/10 bg-[#111] p-3" />
+              </label>
+              <label className="mt-4 block text-sm font-medium">
+                Policy text
+                <textarea name="text" required rows={5} placeholder="Paste the relevant policy text." className="mt-2 block w-full rounded-lg border border-white/10 bg-[#111] p-3" />
+              </label>
+            </>
+          )}
           <div className="mt-4 grid grid-cols-2 gap-3">
             <input
               required
@@ -156,15 +202,17 @@ export function KnowledgePage() {
           </div>
           <Button disabled={busy} className="mt-5 w-full">
             {busy ? <SpinnerGap className="animate-spin" /> : <FileArrowUp />}
-            Index document
+            {sourceKind === "file" ? "Index document" : "Index text"}
           </Button>
+          {savedSource && <p role="status" className="mt-3 text-sm text-[#d9ff76]">Indexed {savedSource}.</p>}
         </form>
         <form
           onSubmit={retrieve}
           className="rounded-2xl border border-white/10 bg-[#181818] p-6"
         >
-          <h2 className="text-xl font-semibold">Test retrieval</h2>
+          <h2 className="text-xl font-semibold">Ask about your policy</h2>
           <textarea
+            aria-label="Evidence search"
             required
             minLength={3}
             rows={4}
@@ -179,8 +227,28 @@ export function KnowledgePage() {
             className="mt-5 w-full"
           >
             <MagnifyingGlass />
-            Retrieve evidence
+            Get answer with evidence
           </Button>
+          {policyAnswer && (
+            <section className="mt-5 space-y-3" aria-live="polite">
+              <h3 className="font-semibold">Answer</h3>
+              <p className="text-sm text-[#e1e1e1]">{policyAnswer.answer ?? "I couldn’t find a clause that directly answers this question."}</p>
+              {policyAnswer.answer_source && (
+                <PolicyPassage
+                  passage={{ ...policyAnswer.answer_source, id: policyAnswer.answer_source.chunk_id }}
+                  showQuote={policyAnswer.answer !== policyAnswer.answer_source.content}
+                />
+              )}
+              {!policyAnswer.answer_source && policyAnswer.items.length > 0 && (
+                <details className="text-sm">
+                  <summary className="cursor-pointer text-[#bcbcbc]">See nearby clauses</summary>
+                  <div className="mt-2 space-y-2">
+                    {policyAnswer.items.map((item) => <PolicyPassage key={`${item.chunk_id}/${item.content}`} passage={{ ...item, id: item.chunk_id }} />)}
+                  </div>
+                </details>
+              )}
+            </section>
+          )}
         </form>
       </div>
       <section className="mt-8">
@@ -209,9 +277,9 @@ export function KnowledgePage() {
       <section className="mt-8 rounded-2xl border border-white/10 bg-[#181818] p-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h2 className="text-xl font-semibold">Compliance mapping</h2>
-            <p className="mt-2 text-sm text-[#888]">
-              Ground each requirement in retrieved evidence.
+            <h2 className="text-xl font-semibold">Requirements and policy evidence</h2>
+            <p className="mt-2 max-w-xl text-sm text-[#bcbcbc]">
+              Compare requirements with policy clauses. Clear matches are labeled by AI. Partial or uncertain matches are flagged for review.
             </p>
           </div>
           <Button
@@ -219,66 +287,41 @@ export function KnowledgePage() {
             disabled={busy || documents.length === 0}
             variant="secondary"
           >
-            Analyze compliance
+            {busy ? "Working…" : "Review policy evidence with AI"}
           </Button>
         </div>
-        {mappings.length > 0 && (
+        {mappings.length === 0 ? (
+          <p className="mt-5 text-sm text-[#9b9b9b]">Add a policy source, then match it against your saved requirements.</p>
+        ) : (
           <div className="mt-5 space-y-3">
-            {mappings.map((mapping) => (
-              <article key={mapping.id} className="rounded-xl bg-[#111] p-4">
-                <div className="flex flex-wrap justify-between gap-3">
-                  <p className="font-medium">{mapping.obligation}</p>
-                  <div className="flex flex-wrap gap-2">
-                    <span className="rounded-full bg-[#d9ff76]/10 px-2 py-1 text-xs uppercase text-[#d9ff76]">
-                      {mapping.applicability}
-                    </span>
-                    <span className="rounded-full bg-amber-300/10 px-2 py-1 text-xs uppercase text-amber-200">
-                      {mapping.gap_status.replace("_", " ")}
-                    </span>
+            {mappings.map((mapping) => {
+              const first = mapping.passages[0];
+              const current = mapping.ai_reviewed && ["ai_matched", "needs_human_review", "no_matching_evidence"].includes(mapping.status);
+              const matched = current && !mapping.needs_refresh && mapping.status === "ai_matched";
+              return (
+                <article key={mapping.id} className="rounded-xl bg-[#111] p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-mono text-sm text-[#d9ff76]">{mapping.requirement_code}</p>
+                    <p className={`rounded-full px-2.5 py-1 text-xs font-medium ${matched ? "bg-emerald-300/10 text-emerald-200" : "bg-white/5 text-[#d1d1d1]"}`}>
+                      {mapping.needs_refresh ? "Requirement changed" : !current ? "Run updated review" : matched ? "AI matched" : first ? "Human review needed" : "No policy match"}
+                    </p>
                   </div>
-                </div>
-                <p className="mt-2 text-sm text-[#9b9b9b]">
-                  {mapping.rationale}
-                </p>
-                <p className="mt-2 text-xs text-[#888]">
-                  Confidence {Math.round(mapping.confidence * 100)}%
-                  {mapping.human_review_required
-                    ? " · Human review required"
-                    : ""}
-                </p>
-                {mapping.citations.map((citation, index) => (
-                  <p
-                    key={`${citation.filename}-${index}`}
-                    className="mt-2 text-xs text-[#aaa]"
-                  >
-                    {citation.filename} · {citation.section} · p.
-                    {citation.page ?? "n/a"} · v{citation.version}
-                  </p>
-                ))}
-              </article>
-            ))}
+                  <h3 className="mt-2 font-medium">{mapping.requirement_statement}</h3>
+                  {!current || mapping.needs_refresh ? (
+                    <p className="mt-3 text-sm text-[#bcbcbc]">Run the AI review to check the current requirement against your sources.</p>
+                  ) : (
+                    <div className="mt-3 space-y-2">
+                      <p className="text-sm text-[#bcbcbc]">{mapping.rationale}</p>
+                      {first && <PolicyPassage passage={first} />}
+                    </div>
+                  )}
+                </article>
+              );
+            })}
           </div>
         )}
       </section>
-      {evidence.length > 0 && (
-        <section className="mt-8">
-          <h2 className="text-xl font-semibold">Retrieved evidence</h2>
-          <div className="mt-4 space-y-3">
-            {evidence.map((item) => (
-              <article
-                key={item.chunk_id}
-                className="rounded-xl border border-[#d9ff76]/15 bg-[#181818] p-5"
-              >
-                <p className="text-sm font-semibold text-[#d9ff76]">
-                  {item.filename} · {item.section} ·{" "}
-                  {Math.round(item.score * 100)}%
-                </p>
-                <p className="mt-3 text-sm text-[#bcbcbc]">{item.content}</p>
-              </article>
-            ))}
-          </div>
-        </section>
-      )}
+
     </div>
   );
 }

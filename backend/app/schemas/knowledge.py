@@ -37,3 +37,10 @@ class EvidenceChunk(BaseModel):
 
 class RetrievalResponse(BaseModel):
     items: list[EvidenceChunk]
+    answer: str | None = None
+    answer_source: EvidenceChunk | None = None
+
+
+class EvidenceAnswer(BaseModel):
+    source: int = Field(ge=0)
+    answer: str = Field(max_length=450)

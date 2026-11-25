@@ -25,7 +25,7 @@ class WorkflowService:
         requirements = list(
             await self.session.scalars(
                 select(Requirement)
-                .where(Requirement.project_id == project_id)
+                .where(Requirement.active_in(project_id))
                 .order_by(Requirement.requirement_code)
             )
         )

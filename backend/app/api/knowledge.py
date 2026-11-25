@@ -7,6 +7,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from app.api.dependencies import CurrentUser, SessionDependency
 from app.schemas.knowledge import DocumentResponse, RetrievalRequest, RetrievalResponse
 from app.services.knowledge import DuplicateDocumentError, KnowledgeService
+from app.services.llm import LLMServiceError
 
 router = APIRouter(prefix="/projects/{project_id}/knowledge", tags=["knowledge"])
 
@@ -48,7 +49,10 @@ async def list_documents(
 async def retrieve_evidence(
     project_id: uuid.UUID, data: RetrievalRequest, user: CurrentUser, session: SessionDependency
 ) -> RetrievalResponse:
-    result = await KnowledgeService(session).retrieve(project_id, user.id, data.query, data.limit)
+    try:
+        result = await KnowledgeService(session).answer(project_id, user.id, data.query, data.limit)
+    except LLMServiceError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     if result is None:
         raise HTTPException(status_code=404, detail="Project not found.")
     return result

@@ -1,41 +1,54 @@
-from app.schemas.compliance import ComplianceAgentInput, ComplianceAssessment
+from app.schemas.compliance import ComplianceAgentInput, ComplianceAssessment, PolicyMatch
+from app.services.knowledge import numeric_values, relevance_terms
+
+DIRECT_MATCH_CONFIDENCE = 0.85
 
 
 class ComplianceAgent:
-    """Maps obligations only when retrieved source evidence is supplied."""
-
-    def run(self, data: ComplianceAgentInput) -> ComplianceAssessment:
-        if not data.evidence:
+    def run(self, data: ComplianceAgentInput, match: PolicyMatch) -> ComplianceAssessment:
+        selected = (
+            data.evidence[match.passage - 1]
+            if match.decision != "no_match" and 1 <= match.passage <= len(data.evidence)
+            else None
+        )
+        terms = relevance_terms(data.requirement)
+        overlap = terms & relevance_terms(selected.content) if selected else set()
+        if selected is None or not overlap:
             return ComplianceAssessment(
-                obligation="No grounded obligation identified",
+                obligation="No matching policy evidence",
                 applicability="unknown",
-                rationale="No retrieved evidence supports a regulatory conclusion.",
+                rationale=match.reason
+                if match.decision == "no_match"
+                else ("The review did not identify a clause that supports this requirement."),
                 evidence_chunk_ids=[],
                 citations=[],
                 confidence=0.0,
-                gap_status="insufficient_evidence",
-                human_review_required=True,
+                gap_status="no_matching_evidence",
+                human_review_required=False,
             )
-        strongest = data.evidence[0]
+        direct = (
+            match.decision == "direct_match"
+            and match.confidence >= DIRECT_MATCH_CONFIDENCE
+            and numeric_values(data.requirement) <= numeric_values(selected.content)
+            and len(overlap) >= min(2, len(terms))
+        )
         return ComplianceAssessment(
-            obligation=f"Review requirement against {strongest.filename}",
-            applicability="applicable",
-            rationale=(
-                "The retrieved source contains language relevant to the requirement. "
-                "A compliance officer must confirm the interpretation."
-            ),
-            evidence_chunk_ids=[item.chunk_id for item in data.evidence],
+            obligation=f"Matched policy clause in {selected.filename}",
+            applicability="applicable" if direct else "needs_review",
+            rationale=match.reason,
+            evidence_chunk_ids=[selected.chunk_id],
             citations=[
                 {
-                    "filename": item.filename,
-                    "section": item.section,
-                    "page": item.page_number,
-                    "version": item.version,
-                    "jurisdiction": item.jurisdiction,
+                    "chunk_id": str(selected.chunk_id),
+                    "filename": selected.filename,
+                    "section": selected.section,
+                    "page": selected.page_number,
+                    "version": selected.version,
+                    "jurisdiction": selected.jurisdiction,
+                    "excerpt": selected.content,
                 }
-                for item in data.evidence
             ],
-            confidence=min(0.95, strongest.score),
-            gap_status="review_required",
-            human_review_required=True,
+            confidence=match.confidence,
+            gap_status="ai_matched" if direct else "needs_human_review",
+            human_review_required=not direct,
         )

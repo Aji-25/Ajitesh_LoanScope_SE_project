@@ -1,4 +1,4 @@
-name: clarifi
+name: loanscope
 
 services:
   postgres:
@@ -25,7 +25,7 @@ services:
       BOOTSTRAP_USER_EMAIL: ${BOOTSTRAP_USER_EMAIL:-}
       BOOTSTRAP_USER_PASSWORD: ${BOOTSTRAP_USER_PASSWORD:-}
       BOOTSTRAP_USER_NAME: ${BOOTSTRAP_USER_NAME:-Development analyst}
-      LLM_MODE: ${LLM_MODE:-mock}
+      LLM_MODE: ${LLM_MODE:-ollama}
       LLM_MODEL: ${LLM_MODEL:-gpt-4.1-mini}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}

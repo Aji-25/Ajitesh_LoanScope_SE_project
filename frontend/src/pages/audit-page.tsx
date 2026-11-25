@@ -11,6 +11,13 @@ import type { AuditEvent, Evaluation } from "@/api/types";
 import type { ProjectOutletContext } from "@/components/project-layout";
 import { Button } from "@/components/ui/button";
 
+const metrics = [
+  ["requirement_completeness", "Clear requirements", "Current requirements with no open wording issues."],
+  ["evidence_grounding", "Policy evidence", "Current requirements linked to a policy passage by the AI review."],
+  ["risk_coverage", "Risk review coverage", "Current requirement versions reviewed for risks. A review can find zero risks."],
+  ["artifact_coverage", "Documents generated", "Distinct document types generated out of the nine available."],
+] as const;
+
 export function AuditPage() {
   const { project } = useOutletContext<ProjectOutletContext>();
   const [events, setEvents] = useState<AuditEvent[]>([]);
@@ -53,17 +60,13 @@ export function AuditPage() {
   }
   return (
     <div>
-      <p className="text-sm font-semibold text-[#d9ff76]">
-        Traceability and quality
-      </p>
-      <h1 className="mt-3 text-4xl font-semibold">Audit and evaluation</h1>
+      <h1 className="text-4xl font-semibold">Audit and evaluation</h1>
       <p className="mt-4 max-w-2xl text-[#9b9b9b]">
-        Inspect significant human and system actions, then snapshot measurable
-        readiness metrics.
+        See what changed and when. Run an evaluation to save the current project counts and get an AI summary of what to do next.
       </p>
       <Button onClick={run} disabled={busy} className="mt-6">
-        {busy ? <SpinnerGap className="animate-spin" /> : <ChartBar />}Run
-        evaluation
+        {busy ? <SpinnerGap aria-hidden="true" className="animate-spin" /> : <ChartBar aria-hidden="true" />}
+        {busy ? "Reviewing snapshot…" : "Run evaluation"}
       </Button>
       {error && (
         <p role="alert" className="mt-5 flex gap-2 text-red-200">
@@ -73,28 +76,27 @@ export function AuditPage() {
       )}
       {evaluation && (
         <section className="mt-8 rounded-2xl border border-white/10 bg-[#181818] p-6">
-          <div className="flex justify-between gap-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="text-xl font-semibold">Latest quality snapshot</h2>
-            <span
-              className={
-                evaluation.passed ? "text-[#d9ff76]" : "text-amber-200"
-              }
-            >
-              {evaluation.passed ? "Passed" : "Needs review"}
-            </span>
+            <time className="text-sm text-[#bcbcbc]">{new Date(evaluation.created_at).toLocaleString()}</time>
           </div>
-          <p className="mt-2 text-sm text-[#888]">{evaluation.summary}</p>
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-            {Object.entries(evaluation.metrics).map(([name, value]) => (
-              <div key={name} className="rounded-xl bg-[#111] p-4">
-                <p className="text-2xl font-semibold text-[#d9ff76]">
-                  {value}%
-                </p>
-                <p className="mt-1 text-xs capitalize text-[#888]">
-                  {name.replaceAll("_", " ")}
-                </p>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {metrics.map(([key, label, description]) => (
+              <div key={key} className="rounded-xl bg-[#111] p-4">
+                <p className="text-2xl font-semibold text-[#d9ff76]">{evaluation.metrics[key]}%</p>
+                <p className="mt-1 text-sm font-semibold">{label}</p>
+                <p className="mt-2 text-sm text-[#bcbcbc]">{description}</p>
               </div>
             ))}
+          </div>
+          <div className="mt-5 border-t border-white/10 pt-4">
+            <h3 className="font-semibold">AI review</h3>
+            <p className="mt-2 text-sm text-[#bcbcbc]">{evaluation.summary}</p>
+            {!!evaluation.review_actions?.length && (
+              <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-[#bcbcbc]">
+                {evaluation.review_actions.map((action, index) => <li key={index}>{action}</li>)}
+              </ul>
+            )}
           </div>
         </section>
       )}
@@ -121,9 +123,11 @@ export function AuditPage() {
                   </time>
                 </div>
                 <p className="mt-2 text-sm text-[#888]">
-                  {event.actor_type}
-                  {event.agent_name ? ` · ${event.agent_name}` : ""} ·{" "}
-                  {event.entity_type}
+                  {event.agent_name === "live_ai" || (event.agent_name === "requirement_agent" && typeof event.event_metadata.provider_mode === "string" && event.event_metadata.provider_mode !== "mock")
+                    ? "AI"
+                    : event.actor_type === "user" || event.actor_type === "human"
+                      ? "Project member"
+                      : "Workspace"}
                 </p>
               </article>
             ))}

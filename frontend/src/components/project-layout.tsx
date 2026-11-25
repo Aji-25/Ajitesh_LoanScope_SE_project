@@ -2,13 +2,11 @@ import {
   Archive,
   ChartBar,
   ChatCircleDots,
-  CheckSquare,
   ClipboardText,
   FileText,
   Gavel,
   House,
   ShieldCheck,
-  Siren,
 } from "@phosphor-icons/react";
 import { useCallback, useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useParams } from "react-router-dom";
@@ -23,10 +21,8 @@ const navigation = [
   ["interview", "Interview", ChatCircleDots],
   ["requirements", "Requirements", ClipboardText],
   ["compliance", "Compliance", Gavel],
-  ["security", "Security", ShieldCheck],
-  ["risks", "Risks", Siren],
+  ["security", "Security & risks", ShieldCheck],
   ["sdlc", "SDLC", ChartBar],
-  ["approvals", "Approvals", CheckSquare],
   ["documents", "Documents", FileText],
   ["audit", "Audit", Archive],
 ] as const;

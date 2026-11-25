@@ -5,7 +5,20 @@ from datetime import datetime
 from typing import Any
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String, Text, UniqueConstraint, func
+from sqlalchemy import (
+    Boolean,
+    ColumnElement,
+    DateTime,
+    Float,
+    ForeignKey,
+    Select,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+    or_,
+    select,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -177,11 +190,20 @@ class Requirement(TimestampMixin, Base):
         String(32), default="not_required", nullable=False
     )
     version: Mapped[int] = mapped_column(default=1, nullable=False)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     project: Mapped[Project] = relationship(back_populates="requirements")
     versions: Mapped[list[RequirementVersion]] = relationship(
         back_populates="requirement", cascade="all, delete-orphan"
     )
+
+    @classmethod
+    def active_in(cls, project_id: uuid.UUID) -> ColumnElement[bool]:
+        return (cls.project_id == project_id) & cls.deleted_at.is_(None)
+
+    @classmethod
+    def active_ids(cls, project_id: uuid.UUID) -> Select[tuple[uuid.UUID]]:
+        return select(cls.id).where(cls.active_in(project_id))
 
 
 class RequirementVersion(Base):
@@ -328,6 +350,7 @@ class ComplianceMapping(TimestampMixin, Base):
     status: Mapped[str] = mapped_column(String(32), default="draft", nullable=False)
     gap_status: Mapped[str] = mapped_column(String(32), default="review_required", nullable=False)
     human_review_required: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    ai_reviewed: Mapped[bool | None] = mapped_column(Boolean)
 
     project: Mapped[Project] = relationship(back_populates="compliance_mappings")
 
@@ -366,9 +389,22 @@ class Risk(TimestampMixin, Base):
     impact: Mapped[int] = mapped_column(nullable=False)
     score: Mapped[int] = mapped_column(nullable=False)
     mitigation: Mapped[str] = mapped_column(Text, nullable=False)
+    existing_control: Mapped[str | None] = mapped_column(Text)
+    rating_reason: Mapped[str | None] = mapped_column(Text)
     owner_role: Mapped[str] = mapped_column(String(120), nullable=False)
     status: Mapped[str] = mapped_column(String(32), default="open", nullable=False)
     project: Mapped[Project] = relationship(back_populates="risks")
+
+    @classmethod
+    def active_in(cls, project_id: uuid.UUID) -> ColumnElement[bool]:
+        return (
+            (cls.project_id == project_id)
+            & cls.rating_reason.is_not(None)
+            & or_(
+                cls.requirement_id.is_(None),
+                cls.requirement_id.in_(Requirement.active_ids(project_id)),
+            )
+        )
 
 
 class SDLCRecommendation(TimestampMixin, Base):
@@ -410,4 +446,5 @@ class EvaluationRun(TimestampMixin, Base):
     metrics: Mapped[dict[str, float]] = mapped_column(JSONB, nullable=False)
     passed: Mapped[bool] = mapped_column(Boolean, nullable=False)
     summary: Mapped[str] = mapped_column(Text, nullable=False)
+    review_actions: Mapped[list[str] | None] = mapped_column(JSONB)
     project: Mapped[Project] = relationship(back_populates="evaluations")

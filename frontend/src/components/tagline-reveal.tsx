@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 const words =
-  "Every requirement keeps its source. Every decision keeps its evidence. Every approval stays visible.".split(
+  "Every requirement keeps its source. Every decision keeps its evidence. Every change stays visible.".split(
     " ",
   );
 

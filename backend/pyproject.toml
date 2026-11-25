@@ -1,7 +1,7 @@
 [project]
-name = "clarifi-backend"
+name = "loanscope-backend"
 version = "0.1.0"
-description = "API foundation for the Clarifi requirement engineering workspace"
+description = "API foundation for the LoanScope requirement engineering workspace"
 requires-python = ">=3.12"
 dependencies = [
   "alembic>=1.16.0,<2.0.0",
@@ -23,6 +23,7 @@ dependencies = [
   "python-multipart>=0.0.20,<1.0.0",
   "sqlalchemy[asyncio]>=2.0.0,<3.0.0",
   "uvicorn[standard]>=0.34.0,<1.0.0",
+  "reportlab>=4,<5",
 ]
 
 [dependency-groups]
@@ -31,6 +32,7 @@ dev = [
   "pytest>=8.4.0,<9.0.0",
   "pytest-asyncio>=1.1.0,<2.0.0",
   "ruff>=0.12.0,<1.0.0",
+  "types-reportlab>=5.1.0.20261122",
 ]
 
 [tool.pytest.ini_options]
